@@ -147,7 +147,8 @@ public sealed class TrackInfo
     // Video
     public int? Width { get; init; }
     public int? Height { get; init; }
-    public int? BitDepth { get; init; }
+    /// <summary>Video, and audio when ffprobe or mediainfo states it (lossless tracks).</summary>
+    public int? BitDepth { get; set; }
     public double? FrameRate { get; init; }
 
     /// <summary>HDR10, HDR10+ or HLG; null for SDR.</summary>
@@ -172,6 +173,12 @@ public sealed class TrackInfo
     public string? ChannelLayout { get; init; }
 
     public int? SampleRate { get; init; }
+
+    /// <summary>The track's size in bytes, from mediainfo (or the MKV statistics tags).</summary>
+    public long? StreamSize { get; set; }
+
+    /// <summary>Subtitles: how many lines or pictures, from mediainfo's count of elements.</summary>
+    public long? ElementCount { get; set; }
 
     /// <summary>2160p, 1080p, 720p, 576p, 480p.</summary>
     public string? Resolution => Height is null ? null : MediaParser.ResolutionLabel(Width ?? 0, Height.Value);
@@ -229,15 +236,21 @@ public sealed class TrackInfo
             {
                 case TrackType.Video:
                     if (Resolution != null) parts.Add(Resolution);
-                    if (BitDepth is > 8) parts.Add($"{BitDepth}-bit");
+                    if (BitDepth != null) parts.Add($"{BitDepth}-bit");
                     if (DynamicRange != null) parts.Add(DynamicRange);
                     if (FrameRate != null) parts.Add($"{FrameRate:0.###} fps");
                     break;
                 case TrackType.Audio:
                     if (ChannelLayout != null) parts.Add(ChannelLayout);
                     if (SampleRate != null) parts.Add($"{SampleRate / 1000.0:0.#} kHz");
+                    if (BitDepth != null) parts.Add($"{BitDepth}-bit");
+                    break;
+                case TrackType.Subtitles:
+                    if (ElementCount != null) parts.Add($"{ElementCount:N0} elements");
                     break;
             }
+
+            if (StreamSize is { } size) parts.Add(Format.Size(size));
 
             return string.Join(" · ", parts);
         }

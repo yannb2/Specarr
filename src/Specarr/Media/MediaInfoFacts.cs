@@ -19,6 +19,12 @@ public sealed record MediaInfoFacts
     /// <summary>Each track's bit rate (average and peak) as mediainfo reports it, by stream order.</summary>
     public List<MediaInfoBitRate> TrackBitRates { get; init; } = [];
 
+    /// <summary>
+    /// Each track's bit depth, stream size and count of elements. Null in rows cached
+    /// before they were read: the file page reads them then (one quick mediainfo run).
+    /// </summary>
+    public List<MediaInfoTrackFacts>? Tracks { get; init; }
+
     /// <summary>Reads <c>mediainfo --Output=JSON</c>. Null when the text is not mediainfo JSON.</summary>
     public static MediaInfoFacts? Parse(string? json)
     {
@@ -54,7 +60,8 @@ public sealed record MediaInfoFacts
             VideoBitRate = long.TryParse(Get(video, "BitRate"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var b) && b > 0
                 ? b
                 : null,
-            TrackBitRates = AudioBitRate.ParseMediaInfo(json)
+            TrackBitRates = AudioBitRate.ParseMediaInfo(json),
+            Tracks = MediaInfoTracks.Parse(json)
         };
     }
 

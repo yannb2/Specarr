@@ -210,6 +210,19 @@ public sealed class IndexStore : IDisposable
         }
     }
 
+    /// <summary>Replaces only what mediainfo said, for a row that was read before it said more.</summary>
+    public void UpdateMediaInfo(string path, MediaInfoFacts facts)
+    {
+        lock (_lock)
+        {
+            using var command = _connection.CreateCommand();
+            command.CommandText = "UPDATE files SET mediainfo = $mediainfo WHERE path = $path";
+            command.Parameters.AddWithValue("$path", path);
+            command.Parameters.AddWithValue("$mediainfo", JsonSerializer.Serialize(facts));
+            command.ExecuteNonQuery();
+        }
+    }
+
     public void UpdateSummary(string path, FileSummary summary)
     {
         lock (_lock)

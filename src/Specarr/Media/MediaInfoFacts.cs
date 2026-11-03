@@ -16,6 +16,9 @@ public sealed record MediaInfoFacts
     public string? EncoderSettings { get; init; }
     public long? VideoBitRate { get; init; }
 
+    /// <summary>Each track's bit rate (average and peak) as mediainfo reports it, by stream order.</summary>
+    public List<MediaInfoBitRate> TrackBitRates { get; init; } = [];
+
     /// <summary>Reads <c>mediainfo --Output=JSON</c>. Null when the text is not mediainfo JSON.</summary>
     public static MediaInfoFacts? Parse(string? json)
     {
@@ -50,7 +53,8 @@ public sealed record MediaInfoFacts
             EncoderSettings = Get(video, "Encoded_Library_Settings"),
             VideoBitRate = long.TryParse(Get(video, "BitRate"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var b) && b > 0
                 ? b
-                : null
+                : null,
+            TrackBitRates = AudioBitRate.ParseMediaInfo(json)
         };
     }
 

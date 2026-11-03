@@ -47,6 +47,7 @@
                         <th class="ps-3" style="width: 35px;">#</th>
                         <th>Language</th>
                         <th>Format</th>
+                        <th class="text-end text-nowrap">Bit rate</th>
                         <th>Name</th>
                     </tr>
                     </thead>
@@ -56,7 +57,8 @@
                         <tr>
                             <td class="ps-3">@track.Index</td>
                             <td><TrackBadge Track="track"/></td>
-                            <td><code>@track.FormatSummary</code></td>
+                            <td><code>@track.FormatDetails</code></td>
+                            <td class="text-end text-nowrap small" title="@BitRateTitle(track)">@track.BitRateText</td>
                             <td class="small">@track.Title</td>
                         </tr>
                     }
@@ -203,6 +205,16 @@
         _wholeFilm = Probe.CachedWholeFilm(Details.Path);
         _wholeFilmError = null;
         _readingWholeFilm = false;
+    }
+
+    private static string? BitRateTitle(TrackInfo track)
+    {
+        if (track.BitRateIsEstimate)
+        {
+            return $"Not stored in the file: measured on {AudioBitRate.SampleCount} samples of {AudioBitRate.SampleSeconds} s";
+        }
+
+        return track.BitRate == null && track.MaxBitRate != null ? "Only the peak is known (stream header)" : null;
     }
 
     private async Task ReadWholeFilm()

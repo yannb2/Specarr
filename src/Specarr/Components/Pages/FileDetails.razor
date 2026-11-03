@@ -228,7 +228,7 @@
         }
 
         StateHasChanged();
-        var result = await Probe.ProbeAsync(_file.Path);
+        var result = await Probe.ProbeAsync(_file.Path, force: _file.NeedsRefresh);
         if (request == _request)
         {
             _probe = result;
@@ -244,7 +244,7 @@
             Relate();
             _ = InvokeAsync(async () =>
             {
-                _probe = await Probe.ProbeAsync(file.Path);
+                _probe = await Probe.ProbeAsync(file.Path, force: file.NeedsRefresh);
                 StateHasChanged();
             });
         }
@@ -313,7 +313,7 @@
         }
 
         StateHasChanged();
-        var result = await Probe.ProbeAsync(other.Path);
+        var result = await Probe.ProbeAsync(other.Path, force: other.NeedsRefresh);
         if (_compareId == id)
         {
             _compare = result;

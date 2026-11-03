@@ -146,7 +146,9 @@ else
 
         return string.Join(", ", summary.Audio.Where(a => !a.IsCommentary)
             .GroupBy(a => a.Language)
-            .Select(g => $"{Languages.Short(g.Key)} {g.First().Label}"));
+            .Select(g => g.First() is var a && a.BitRateText is { } rate
+                ? $"{Languages.Short(g.Key)} {a.Label} · {rate}"
+                : $"{Languages.Short(g.Key)} {a.Label}"));
     }
 
     internal static string SubtitleText(FileSummary? summary)

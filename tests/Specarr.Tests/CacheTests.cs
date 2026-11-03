@@ -22,7 +22,12 @@ public sealed class CacheTests
                 FfprobeJson = Sample("uhd-remux-dv.json"),
                 Hdr10PlusStreams = [0],
                 DoviError = "dovi_tool is not installed",
-                MediaInfo = new MediaInfoFacts { WritingApplication = "MakeMKV v1.18.1", VideoBitRate = 61_000_000 }
+                MediaInfo = new MediaInfoFacts
+                {
+                    WritingApplication = "MakeMKV v1.18.1", VideoBitRate = 61_000_000,
+                    TrackBitRates = [new MediaInfoBitRate(1, null, 9_600_000)]
+                },
+                MeasuredAudioBitRates = new Dictionary<int, long> { [2] = 1_510_000 }
             };
             var built = MediaProbe.Build("/movies/a.mkv", 100, raw);
             var summary = FileSummary.From(built.Details!);
@@ -45,6 +50,8 @@ public sealed class CacheTests
                 Assert.IsNotNull(again);
                 Assert.AreEqual("MakeMKV v1.18.1", again.MediaInfo?.WritingApplication);
                 CollectionAssert.AreEqual(new[] { 0 }, again.Hdr10PlusStreams.ToArray());
+                Assert.AreEqual(9_600_000L, again.MediaInfo?.TrackBitRates.Single().MaxBitRate);
+                Assert.AreEqual(1_510_000L, again.MeasuredAudioBitRates[2]);
 
                 // A different size or date is another file.
                 Assert.IsNull(store.Get("/movies/a.mkv", 101, 5));
@@ -55,6 +62,37 @@ public sealed class CacheTests
                 store.Delete(["/movies/a.mkv"]);
                 Assert.HasCount(0, store.LoadAll());
             }
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void Store_adds_the_audio_bit_rate_column_to_an_older_cache()
+    {
+        var folder = Directory.CreateTempSubdirectory("specarr-db").FullName;
+        try
+        {
+            var path = Path.Combine(folder, "specarr.db");
+            using (var old = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                old.Open();
+                using var command = old.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE files (path TEXT PRIMARY KEY, size INTEGER NOT NULL, mtime INTEGER NOT NULL, probed_utc INTEGER NOT NULL,
+                        ffprobe TEXT, hdr10plus TEXT, dovi TEXT, dovi_error TEXT, mediainfo TEXT, error TEXT, summary TEXT, summary_version INTEGER NOT NULL DEFAULT 0);
+                    INSERT INTO files (path, size, mtime, probed_utc, ffprobe, summary, summary_version) VALUES ('/movies/old.mkv', 1, 1, 0, '{}', '{}', 1);
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            var options = Microsoft.Extensions.Options.Options.Create(new SpecarrOptions { DatabasePath = path });
+            using var store = new IndexStore(options, NullLogger<IndexStore>.Instance);
+            var row = store.LoadAll().Single();
+            Assert.IsLessThan(FileSummary.ReadVersion, row.SummaryVersion, "Read again in the background");
+            Assert.IsEmpty(store.Get("/movies/old.mkv", 1, 1)!.MeasuredAudioBitRates);
         }
         finally
         {

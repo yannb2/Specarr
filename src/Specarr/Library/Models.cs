@@ -41,6 +41,12 @@ public sealed class IndexedFile
     public bool IsProbed => Summary != null || Error != null;
 
     /// <summary>
+    /// Read by an older Specarr that did not read everything this one shows
+    /// (see <see cref="FileSummary.ReadVersion"/>). Its summary is shown while it waits to be read again.
+    /// </summary>
+    public bool NeedsRefresh { get; set; }
+
+    /// <summary>
     /// The guess and the name disagree. A guess with low confidence never
     /// counts: it is a hint, not a finding.
     /// </summary>
@@ -52,6 +58,7 @@ public sealed class IndexedFile
     {
         Summary = summary;
         Error = summary == null ? error : null;
+        NeedsRefresh = false;
         Named = SourceGuesser.Named(FileName, summary?.Tag("SOURCE"));
     }
 }

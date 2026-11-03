@@ -3,6 +3,7 @@
 @{
     var files = Snapshot.Files;
     var pending = files.Count(f => !f.IsProbed);
+    var refresh = files.Count(f => f.NeedsRefresh);
 }
 <a href="status" class="text-decoration-none small text-muted d-flex align-items-center gap-2" title="@(Index.CurrentFile ?? "")">
     @if (Index.IsWalking || Index.IsLoading)
@@ -23,6 +24,11 @@
         <div class="progress d-none d-sm-flex" style="width: 6rem; height: 0.4rem;">
             <div class="progress-bar" style="width: @(files.Count == 0 ? 0 : done * 100 / files.Count)%"></div>
         </div>
+    }
+    else if (refresh > 0 && !Index.IsPaused)
+    {
+        <span class="spinner-grow spinner-grow-sm text-secondary" role="status"></span>
+        <span title="Files read by an older version are read again for what this one adds (audio bit rates)">Updating files: @refresh.ToString("N0") left</span>
     }
     else
     {

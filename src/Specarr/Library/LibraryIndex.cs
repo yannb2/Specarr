@@ -76,6 +76,9 @@ public sealed class LibraryIndex : BackgroundService
 
     public int PendingCount => Snapshot.Files.Count(f => !f.IsProbed);
 
+    /// <summary>Files read by an older version, waiting to be read again for what this version adds.</summary>
+    public int RefreshCount => Snapshot.Files.Count(f => f.NeedsRefresh);
+
     public IndexedFile? FindFile(string id) => Snapshot.FilesById.GetValueOrDefault(id);
 
     public TitleEntry? FindTitle(string id) => Snapshot.TitlesById.GetValueOrDefault(id);
@@ -169,7 +172,9 @@ public sealed class LibraryIndex : BackgroundService
         _logger.LogInformation("The cache knows {Count} files", rows.Count);
 
         // Summaries from an older version are built again from what the tools printed, without reading the files.
-        var outdated = rows.Where(r => r.SummaryVersion != FileSummary.CurrentVersion && r.Error == null).ToList();
+        // Rows older than ReadVersion lack what the tools must print again: they are read again in the background instead.
+        var outdated = rows.Where(r => r.SummaryVersion != FileSummary.CurrentVersion && r.SummaryVersion >= FileSummary.ReadVersion
+                                       && r.Error == null).ToList();
         foreach (var row in outdated)
         {
             if (_store.Get(row.Path, row.Size, row.ModifiedTicks) is not { } raw)
@@ -216,6 +221,7 @@ public sealed class LibraryIndex : BackgroundService
                 if (_stored.TryGetValue(found.Path, out var row) && row.Size == found.Size && row.ModifiedTicks == found.ModifiedUtc.Ticks)
                 {
                     file.SetResult(FileSummary.FromJson(row.SummaryJson), row.Error);
+                    file.NeedsRefresh = row.Error == null && row.SummaryVersion < FileSummary.ReadVersion;
                 }
 
                 _byPath[found.Path] = file;
@@ -286,9 +292,11 @@ public sealed class LibraryIndex : BackgroundService
     {
         while (!_walkRequested && !cancellationToken.IsCancellationRequested)
         {
+            // New and changed files first, then the ones an older version read.
             var batch = Snapshot.Files
-                .Where(f => !f.IsProbed)
-                .OrderByDescending(f => f.ModifiedUtc)
+                .Where(f => !f.IsProbed || f.NeedsRefresh)
+                .OrderBy(f => f.IsProbed)
+                .ThenByDescending(f => f.ModifiedUtc)
                 .Take(50)
                 .ToList();
             if (batch.Count == 0)
@@ -309,7 +317,7 @@ public sealed class LibraryIndex : BackgroundService
                         await _resume.WaitAsync(token);
                     }
 
-                    if (_walkRequested || file.IsProbed || !File.Exists(file.Path))
+                    if (_walkRequested || (file.IsProbed && !file.NeedsRefresh) || !File.Exists(file.Path))
                     {
                         if (!File.Exists(file.Path))
                         {
@@ -321,10 +329,10 @@ public sealed class LibraryIndex : BackgroundService
 
                     CurrentFile = file.Path;
                     NotifyChanged();
-                    var result = await _probe.ProbeAsync(file.Path, cancellationToken: token);
+                    var result = await _probe.ProbeAsync(file.Path, force: file.NeedsRefresh, cancellationToken: token);
 
                     // Read from the cache (opened on a page before this walk found it): no event came.
-                    if (!file.IsProbed)
+                    if (!file.IsProbed || file.NeedsRefresh)
                     {
                         file.SetResult(result.Details is { } details ? FileSummary.From(details) : null, result.Error ?? "Could not be read.");
                     }

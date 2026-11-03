@@ -31,8 +31,8 @@ Specarr is read-only. It is the sister app of
   failed. Sort by name, resolution, video bit rate, source, size or date.
 - **File page.** Tracks (codec in Radarr's words, resolution, HDR, Dolby Vision
   profile, Atmos, DTS:X, channels, language, name, flags), chapters, attachments,
-  every MKV global tag (what `tag_release.py` writes), the video bit rate, the
-  encoder (x264, x265...) and the program that wrote the file (MakeMKV, mkvmerge).
+  every MKV global tag (what `tag_release.py` writes), the video and audio bit
+  rates (see below), the encoder (x264, x265...) and the program that wrote the file (MakeMKV, mkvmerge).
 - **Dolby Vision.** dovi_tool reads the RPU of the first 500 frames: profile 7
   FEL or MEL, CM v2.9 or v4.0, L1, L2, L5, L6 and the rest of its summary. "Read
   the whole film" reads every frame.
@@ -41,6 +41,21 @@ Specarr is read-only. It is the sister app of
 - **MediaInfo.** The raw `mediainfo` output or ffprobe JSON.
 - **Status.** Libraries, the background scan (pause, look for new files now,
   retry failures, read everything again), the cache and the tool versions.
+
+## Audio bit rates
+
+Lossy audio (AC3, E-AC3, DTS core, AAC) states its bit rate in every frame.
+Lossless audio (TrueHD, DTS-HD MA, FLAC, PCM) only has one when mkvmerge wrote its
+statistics tags, which most remuxes have but not all. For the others:
+
+1. mediainfo's average for the track, when it has one.
+2. Otherwise Specarr measures it: the size of the audio packets in 6 samples of
+   10 s spread over the film (about a minute of reading, once per file). These
+   rates show as `≈ 4.2 Mb/s`.
+3. With nothing else, the peak from the stream header shows as `up to 9.6 Mb/s`.
+
+Files read by v0.1 are read again in the background to add this; their old
+details stay on screen meanwhile.
 
 ## The source guess
 
@@ -126,6 +141,7 @@ variable (`__` separates levels, lists are numbered from 0):
 | HDR10+ check (decodes 5 frames) | `true` | `Specarr__DetectHdr10Plus` |
 | Dolby Vision details (dovi_tool) | `true` | `Specarr__ReadDolbyVision` |
 | mediainfo (encoder, writing app) | `true` | `Specarr__ReadMediaInfo` |
+| Measure audio bit rates the file does not state | `true` | `Specarr__EstimateAudioBitRate` |
 | Skipped folders (dot folders always) | `@eaDir`, `#recycle`, `lost+found`, `$RECYCLE.BIN` | `Specarr__IgnoredFolderNames__0` |
 | Extras folders | Jellyfin's names | `Specarr__ExtrasFolderNames__0` |
 | Video extensions | `.mkv .mp4 .m4v .avi .ts .m2ts .mov .webm .wmv .mpg .mpeg .iso` | `Specarr__VideoExtensions__0` |

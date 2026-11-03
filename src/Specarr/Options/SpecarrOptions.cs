@@ -41,6 +41,12 @@ public class SpecarrOptions
     /// <summary>Read the Dolby Vision RPU of the first 500 frames with dovi_tool (a second or two per file).</summary>
     public bool ReadDolbyVision { get; set; } = true;
 
+    /// <summary>
+    /// Measure audio bit rates the file does not state (lossless tracks without
+    /// MKV statistics tags) on a few short samples: about a minute of reading per file.
+    /// </summary>
+    public bool EstimateAudioBitRate { get; set; } = true;
+
     /// <summary>Run mediainfo too, for the encoder (x264, x265) and the writing application (MakeMKV): clues for the source.</summary>
     public bool ReadMediaInfo { get; set; } = true;
 

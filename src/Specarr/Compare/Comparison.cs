@@ -16,7 +16,9 @@ public sealed record CompareRow(string Label, string? Left, string? Right, Track
     {
         return track == null
             ? ""
-            : string.Join('|', track.Language, track.FormatSummary, track.Title, string.Join(',', track.Flags));
+            : string.Join('|', track.Language, track.FormatDetails, track.Title, string.Join(',', track.Flags),
+                // A measured bit rate varies a little from file to file; only a stored one counts as a difference.
+                track.BitRateIsEstimate ? "" : track.BitRateText);
     }
 }
 
@@ -90,7 +92,7 @@ public static class Comparison
             rows.Add(new($"{prefix}Dynamic range", l?.DynamicRange, r?.DynamicRange));
             rows.Add(new($"{prefix}Bit depth", l?.BitDepth is { } lb ? $"{lb}-bit" : null, r?.BitDepth is { } rb ? $"{rb}-bit" : null));
             rows.Add(new($"{prefix}Frame rate", l?.FrameRate?.ToString("0.###", CultureInfo.InvariantCulture), r?.FrameRate?.ToString("0.###", CultureInfo.InvariantCulture)));
-            rows.Add(new($"{prefix}Bit rate", BitRate(l?.BitRate), BitRate(r?.BitRate)));
+            rows.Add(new($"{prefix}Bit rate", l?.BitRateText, r?.BitRateText));
             rows.Add(new($"{prefix}Track name", l?.Title, r?.Title));
             rows.Add(new($"{prefix}Language", l?.LanguageName, r?.LanguageName));
         }

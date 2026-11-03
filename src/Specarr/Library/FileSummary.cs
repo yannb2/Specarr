@@ -11,7 +11,13 @@ namespace Specarr.Library;
 public sealed record FileSummary
 {
     /// <summary>Bump when the summary or the source guess changes: older summaries are rebuilt from the cache without reading the files again.</summary>
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
+
+    /// <summary>
+    /// Summaries older than this need the file read again, not only rebuilt:
+    /// version 2 reads audio bit rates (mediainfo per track, measured samples).
+    /// </summary>
+    public const int ReadVersion = 2;
 
     public string Container { get; init; } = "";
     public double? DurationSeconds { get; init; }
@@ -71,7 +77,11 @@ public sealed record FileSummary
             HdrFormat = video?.HdrFormat,
             DvProfile = video?.DolbyVisionProfile,
             DvLayer = video?.EnhancementLayer ?? details.DolbyVision?.Layer,
-            Audio = details.Audio.Select(a => new AudioSummary(a.Codec, a.ChannelLayout, a.Language, a.IsDefault, a.IsCommentary)).ToList(),
+            Audio = details.Audio.Select(a => new AudioSummary(a.Codec, a.ChannelLayout, a.Language, a.IsDefault, a.IsCommentary)
+            {
+                BitRate = a.BitRate,
+                BitRateIsEstimate = a.BitRateIsEstimate
+            }).ToList(),
             Subtitles = details.Subtitles.Select(s => new SubtitleSummary(s.Codec, s.Language, s.IsForced, s.IsHearingImpaired, s.IsDefault)).ToList(),
             Chapters = details.Chapters.Count,
             Tags = details.Tags
@@ -117,7 +127,13 @@ public sealed record FileSummary
 
 public sealed record AudioSummary(string Codec, string? Channels, string Language, bool IsDefault, bool IsCommentary)
 {
+    public long? BitRate { get; init; }
+    public bool BitRateIsEstimate { get; init; }
+
     [JsonIgnore] public string Label => Channels == null ? Codec : $"{Codec} {Channels}";
+
+    /// <summary>"4.2 Mb/s" or "≈ 4.2 Mb/s"; null when unknown.</summary>
+    [JsonIgnore] public string? BitRateText => BitRate is { } bits ? (BitRateIsEstimate ? "≈ " : "") + Format.BitRate(bits) : null;
 }
 
 public sealed record SubtitleSummary(string Codec, string Language, bool IsForced, bool IsHearingImpaired, bool IsDefault);

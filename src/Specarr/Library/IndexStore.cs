@@ -108,6 +108,23 @@ public sealed class IndexStore : IDisposable
                 summary_version INTEGER NOT NULL DEFAULT 0
             );
             """);
+
+        // Columns added after v0.1.
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var command = _connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA table_info(files)";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                columns.Add(reader.GetString(1));
+            }
+        }
+
+        if (!columns.Contains("audio_bitrates"))
+        {
+            Execute(_connection, "ALTER TABLE files ADD COLUMN audio_bitrates TEXT");
+        }
     }
 
     public List<StoredFile> LoadAll()
@@ -135,7 +152,7 @@ public sealed class IndexStore : IDisposable
         lock (_lock)
         {
             using var command = _connection.CreateCommand();
-            command.CommandText = "SELECT ffprobe, hdr10plus, dovi, dovi_error, mediainfo FROM files WHERE path = $path AND size = $size AND mtime = $mtime AND ffprobe IS NOT NULL";
+            command.CommandText = "SELECT ffprobe, hdr10plus, dovi, dovi_error, mediainfo, audio_bitrates FROM files WHERE path = $path AND size = $size AND mtime = $mtime AND ffprobe IS NOT NULL";
             command.Parameters.AddWithValue("$path", path);
             command.Parameters.AddWithValue("$size", size);
             command.Parameters.AddWithValue("$mtime", modifiedTicks);
@@ -151,7 +168,10 @@ public sealed class IndexStore : IDisposable
                 Hdr10PlusStreams = ParseInts(reader.IsDBNull(1) ? null : reader.GetString(1)),
                 DoviSummary = reader.IsDBNull(2) ? null : reader.GetString(2),
                 DoviError = reader.IsDBNull(3) ? null : reader.GetString(3),
-                MediaInfo = reader.IsDBNull(4) ? null : JsonSerializer.Deserialize<MediaInfoFacts>(reader.GetString(4))
+                MediaInfo = reader.IsDBNull(4) ? null : JsonSerializer.Deserialize<MediaInfoFacts>(reader.GetString(4)),
+                MeasuredAudioBitRates = reader.IsDBNull(5)
+                    ? new Dictionary<int, long>()
+                    : JsonSerializer.Deserialize<Dictionary<int, long>>(reader.GetString(5)) ?? new Dictionary<int, long>()
             };
         }
     }
@@ -163,12 +183,12 @@ public sealed class IndexStore : IDisposable
         {
             using var command = _connection.CreateCommand();
             command.CommandText = """
-                INSERT INTO files (path, size, mtime, probed_utc, ffprobe, hdr10plus, dovi, dovi_error, mediainfo, error, summary, summary_version)
-                VALUES ($path, $size, $mtime, $probed, $ffprobe, $hdr10plus, $dovi, $doviError, $mediainfo, $error, $summary, $version)
+                INSERT INTO files (path, size, mtime, probed_utc, ffprobe, hdr10plus, dovi, dovi_error, mediainfo, audio_bitrates, error, summary, summary_version)
+                VALUES ($path, $size, $mtime, $probed, $ffprobe, $hdr10plus, $dovi, $doviError, $mediainfo, $audioBitRates, $error, $summary, $version)
                 ON CONFLICT(path) DO UPDATE SET
                     size = excluded.size, mtime = excluded.mtime, probed_utc = excluded.probed_utc,
                     ffprobe = excluded.ffprobe, hdr10plus = excluded.hdr10plus, dovi = excluded.dovi,
-                    dovi_error = excluded.dovi_error, mediainfo = excluded.mediainfo, error = excluded.error,
+                    dovi_error = excluded.dovi_error, mediainfo = excluded.mediainfo, audio_bitrates = excluded.audio_bitrates, error = excluded.error,
                     summary = excluded.summary, summary_version = excluded.summary_version
                 """;
             command.Parameters.AddWithValue("$path", path);
@@ -180,6 +200,9 @@ public sealed class IndexStore : IDisposable
             command.Parameters.AddWithValue("$dovi", (object?)raw?.DoviSummary ?? DBNull.Value);
             command.Parameters.AddWithValue("$doviError", (object?)raw?.DoviError ?? DBNull.Value);
             command.Parameters.AddWithValue("$mediainfo", raw?.MediaInfo == null ? DBNull.Value : JsonSerializer.Serialize(raw.MediaInfo));
+            command.Parameters.AddWithValue("$audioBitRates", raw == null || raw.MeasuredAudioBitRates.Count == 0
+                ? DBNull.Value
+                : JsonSerializer.Serialize(raw.MeasuredAudioBitRates));
             command.Parameters.AddWithValue("$error", (object?)error ?? DBNull.Value);
             command.Parameters.AddWithValue("$summary", (object?)summary?.ToJson() ?? DBNull.Value);
             command.Parameters.AddWithValue("$version", summary == null ? 0 : FileSummary.CurrentVersion);

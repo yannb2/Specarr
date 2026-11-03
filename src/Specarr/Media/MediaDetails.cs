@@ -130,8 +130,19 @@ public sealed class TrackInfo
     public bool IsOriginal { get; init; }
     public bool IsDub { get; init; }
 
-    /// <summary>Bits per second, from the stream or from the MKV statistics tags.</summary>
-    public long? BitRate { get; init; }
+    /// <summary>Bits per second, from the stream, the MKV statistics tags, mediainfo, or measured on samples.</summary>
+    public long? BitRate { get; set; }
+
+    /// <summary>True when <see cref="BitRate"/> was measured on a few samples of the file, not stored in it.</summary>
+    public bool BitRateIsEstimate { get; set; }
+
+    /// <summary>The peak bit rate from the stream header (mediainfo), e.g. for TrueHD with no average stored.</summary>
+    public long? MaxBitRate { get; set; }
+
+    /// <summary>"4.2 Mb/s", "≈ 4.2 Mb/s" (measured on samples) or "up to 9.6 Mb/s". Null when unknown.</summary>
+    public string? BitRateText => BitRate is { } bits
+        ? (BitRateIsEstimate ? "≈ " : "") + Format.BitRate(bits)
+        : MaxBitRate is { } max ? $"up to {Format.BitRate(max)}" : null;
 
     // Video
     public int? Width { get; init; }
@@ -206,7 +217,10 @@ public sealed class TrackInfo
     }
 
     /// <summary>One line describing the track's format, without language and name.</summary>
-    public string FormatSummary
+    public string FormatSummary => BitRateText is { } rate ? $"{FormatDetails} · {rate}" : FormatDetails;
+
+    /// <summary>The format without the bit rate, for tables that show it in its own column.</summary>
+    public string FormatDetails
     {
         get
         {
@@ -223,11 +237,6 @@ public sealed class TrackInfo
                     if (ChannelLayout != null) parts.Add(ChannelLayout);
                     if (SampleRate != null) parts.Add($"{SampleRate / 1000.0:0.#} kHz");
                     break;
-            }
-
-            if (BitRate != null)
-            {
-                parts.Add(Format.BitRate(BitRate.Value));
             }
 
             return string.Join(" · ", parts);

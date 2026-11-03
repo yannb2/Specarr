@@ -19,6 +19,9 @@ public sealed record RawProbe
     public string? DoviSummary { get; init; }
     public string? DoviError { get; init; }
     public MediaInfoFacts? MediaInfo { get; init; }
+
+    /// <summary>Audio bit rates measured on samples, by stream index, for tracks the file and mediainfo say nothing about.</summary>
+    public IReadOnlyDictionary<int, long> MeasuredAudioBitRates { get; init; } = new Dictionary<int, long>();
 }
 
 /// <summary>A file was read; the library index listens to keep its table up to date.</summary>
@@ -155,13 +158,20 @@ public sealed class MediaProbe(IOptions<SpecarrOptions> options, IndexStore stor
             facts = info.Success ? MediaInfoFacts.Parse(info.Output) : null;
         }
 
+        IReadOnlyDictionary<int, long> measured = new Dictionary<int, long>();
+        if (options.Value.EstimateAudioBitRate && AudioBitRate.NeedsMeasuring(details, facts?.TrackBitRates))
+        {
+            measured = await AudioBitRate.MeasureAsync(FfprobeExecutable, path, details.Duration, cancellationToken);
+        }
+
         return (new RawProbe
         {
             FfprobeJson = result.Output,
             Hdr10PlusStreams = hdr10Plus,
             DoviSummary = doviSummary,
             DoviError = doviError,
-            MediaInfo = facts
+            MediaInfo = facts,
+            MeasuredAudioBitRates = measured
         }, null, null);
     }
 
@@ -204,6 +214,8 @@ public sealed class MediaProbe(IOptions<SpecarrOptions> options, IndexStore stor
             details.EncoderSettings = facts.EncoderSettings;
             details.MediaInfoVideoBitRate = facts.VideoBitRate;
         }
+
+        AudioBitRate.Apply(details, raw.MediaInfo?.TrackBitRates, raw.MeasuredAudioBitRates);
 
         details.Source = SourceGuesser.Guess(details);
         return new ProbeResult(details, null, raw.FfprobeJson);

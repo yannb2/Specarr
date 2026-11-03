@@ -50,6 +50,9 @@ public class SpecarrOptions
     /// <summary>Run mediainfo too, for the encoder (x264, x265) and the writing application (MakeMKV): clues for the source.</summary>
     public bool ReadMediaInfo { get; set; } = true;
 
+    /// <summary>Looking for newer tool versions on the Tools page (never installs anything).</summary>
+    public UpdateCheckOptions Updates { get; set; } = new();
+
     public static readonly string[] DefaultVideoExtensions =
         [".mkv", ".mp4", ".m4v", ".avi", ".ts", ".m2ts", ".mov", ".webm", ".wmv", ".mpg", ".mpeg", ".iso"];
 
@@ -95,6 +98,14 @@ public class SpecarrOptions
 
         return this;
     }
+}
+
+public class UpdateCheckOptions
+{
+    /// <summary>Look for new tool versions on the internet once a day. Nothing is ever installed by the app.</summary>
+    public bool Enabled { get; set; } = true;
+
+    public double IntervalHours { get; set; } = 24;
 }
 
 public class LibraryOptions

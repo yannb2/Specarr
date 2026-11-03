@@ -1,4 +1,5 @@
 @page "/status"
+@inject ToolStatusService Tools
 @inherits IndexComponentBase
 @inject IndexStore Store
 @inject IJSRuntime JS
@@ -133,15 +134,28 @@
 
     <div class="col-12 col-xl-6">
         <div class="card h-100">
-            <div class="card-header"><i class="bi bi-tools me-2"></i>Tools</div>
+            <div class="card-header d-flex align-items-center"><i class="bi bi-tools me-2"></i>Tools<a href="tools" class="ms-auto small">Versions and updates</a></div>
             <div class="card-body p-0">
                 <table class="table table-sm mb-0">
                     <tbody>
-                    @foreach (var (name, version) in _tools)
+                    @foreach (var status in Tools.Statuses)
                     {
                         <tr>
-                            <td class="ps-3"><code>@name</code></td>
-                            <td class="small">@version</td>
+                            <td class="ps-3"><code>@status.Tool.Command</code></td>
+                            <td class="small">
+                                @if (status.Missing)
+                                {
+                                    <span class="text-danger">Not found</span>
+                                }
+                                else
+                                {
+                                    @(status.Installed ?? "?")
+                                }
+                                @if (status.UpdateAvailable)
+                                {
+                                    <a href="tools" class="badge text-bg-info ms-1 text-decoration-none">@status.Latest available</a>
+                                }
+                            </td>
                         </tr>
                     }
                     </tbody>
@@ -185,18 +199,6 @@
 </div>
 
 @code {
-    private List<(string Name, string Version)> _tools = [];
-
-    protected override async Task OnInitializedAsync()
-    {
-        _tools =
-        [
-            (MediaProbe.FfprobeExecutable, await FirstLine(MediaProbe.FfprobeExecutable, "-version")),
-            (MediaProbe.MediaInfoExecutable, await FirstLine(MediaProbe.MediaInfoExecutable, "--version", last: true)),
-            (DoviTool.Executable, await FirstLine(DoviTool.Executable, "--version"))
-        ];
-    }
-
     private async Task ReadEverythingAgain()
     {
         if (await JS.InvokeAsync<bool>("confirm", $"Forget what was read from {Snapshot.Files.Count:N0} files and read them all again? This keeps the disks busy for a while."))
@@ -205,15 +207,4 @@
         }
     }
 
-    private static async Task<string> FirstLine(string tool, string argument, bool last = false)
-    {
-        var result = await ProcessRunner.RunAsync(tool, [argument], TimeSpan.FromSeconds(10));
-        if (!result.Success)
-        {
-            return result.Error.Trim().Length > 0 ? result.Error.Trim() : "Not found";
-        }
-
-        var lines = result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return lines.Length == 0 ? "" : last ? lines[^1] : lines[0];
-    }
 }

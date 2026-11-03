@@ -17,7 +17,8 @@ public sealed record LibraryStats(
     int Uhd,
     int DolbyVision,
     int SourceMismatches,
-    bool Loading)
+    bool Loading,
+    int ToolUpdates = 0)
 {
     public static LibraryStats From(LibraryIndex index)
     {

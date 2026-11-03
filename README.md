@@ -145,6 +145,18 @@ variable (`__` separates levels, lists are numbered from 0):
 | Skipped folders (dot folders always) | `@eaDir`, `#recycle`, `lost+found`, `$RECYCLE.BIN` | `Specarr__IgnoredFolderNames__0` |
 | Extras folders | Jellyfin's names | `Specarr__ExtrasFolderNames__0` |
 | Video extensions | `.mkv .mp4 .m4v .avi .ts .m2ts .mov .webm .wmv .mpg .mpeg .iso` | `Specarr__VideoExtensions__0` |
+| Look for newer tool versions once a day | `true` | `Specarr__Updates__Enabled=false` |
+
+## Tools and updates
+
+The image bundles ffprobe (BtbN static FFmpeg build), MediaInfo (MediaArea's static
+build) and dovi_tool, each pinned with an `ARG` line at the top of the `Dockerfile`.
+The **Tools** page shows what each one reports, the pin and the newest upstream
+version (looked up once a day; the app never installs anything). Every Monday the
+"Tool updates" workflow opens a pull request that bumps the pins when something newer
+is out; the build on that branch is the test. It needs Settings > Actions > General >
+"Allow GitHub Actions to create and approve pull requests". `/api/stats` also returns
+`toolUpdates`, the number of tools with a newer version.
 
 ## Building
 

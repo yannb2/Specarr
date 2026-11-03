@@ -48,6 +48,7 @@
                         <th>Language</th>
                         <th>Format</th>
                         <th class="text-end text-nowrap">Bit rate</th>
+                        <th class="text-end text-nowrap">Size</th>
                         <th>Name</th>
                     </tr>
                     </thead>
@@ -59,6 +60,7 @@
                             <td><TrackBadge Track="track"/></td>
                             <td><code>@track.FormatDetails</code></td>
                             <td class="text-end text-nowrap small" title="@BitRateTitle(track)">@track.BitRateText</td>
+                            <td class="text-end text-nowrap small">@track.StreamSizeText</td>
                             <td class="small">@track.Title</td>
                         </tr>
                     }

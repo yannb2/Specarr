@@ -8,6 +8,10 @@ else
     <div>
         <TrackBadge Track="Track"/>
         <code>@Track.FormatSummary</code>
+        @if (Track.StreamSizeText is { } size)
+        {
+            <span class="small text-muted ms-1 text-nowrap" title="Stream size">@size</span>
+        }
     </div>
     @if (!string.IsNullOrEmpty(Track.Title))
     {

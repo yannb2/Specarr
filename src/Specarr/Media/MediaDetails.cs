@@ -177,6 +177,9 @@ public sealed class TrackInfo
     /// <summary>The track's size in bytes, from mediainfo (or the MKV statistics tags).</summary>
     public long? StreamSize { get; set; }
 
+    /// <summary>The track's size in the file (from the mkvmerge statistics tags or MediaInfo), shown in its own column.</summary>
+    public string? StreamSizeText => StreamSize is { } size ? Format.Size(size) : null;
+
     /// <summary>Subtitles: how many lines or pictures, from mediainfo's count of elements.</summary>
     public long? ElementCount { get; set; }
 
@@ -249,8 +252,6 @@ public sealed class TrackInfo
                     if (ElementCount != null) parts.Add($"{ElementCount:N0} elements");
                     break;
             }
-
-            if (StreamSize is { } size) parts.Add(Format.Size(size));
 
             return string.Join(" · ", parts);
         }

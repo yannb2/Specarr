@@ -39,7 +39,8 @@ public class MediaInfoTracksTests
 
         Assert.AreEqual(24, truehd.BitDepth);
         StringAssert.Contains(truehd.FormatDetails, "24-bit");
-        StringAssert.EndsWith(truehd.FormatDetails, "4.66 GB");
+        Assert.AreEqual("4.66 GB", truehd.StreamSizeText);
+        Assert.IsFalse(truehd.FormatDetails.Contains("GB"), "The size has its own column, not part of the format.");
         Assert.IsNull(ac3.BitDepth);
         Assert.AreEqual(1520L, pgs.ElementCount);
         StringAssert.Contains(pgs.FormatDetails, "1,520 elements");

@@ -1,0 +1,225 @@
+@* Everything about one file: general facts, tracks, Dolby Vision, tags and chapters. *@
+@inject MediaProbe Probe
+<div class="row g-3">
+    <div class="col-12 col-xl-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-file-earmark-play me-2"></i>General</div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-5">Container</dt>
+                    <dd class="col-7">@Details.Container</dd>
+                    <dt class="col-5">Size</dt>
+                    <dd class="col-7">@Format.Size(Details.SizeBytes)</dd>
+                    <dt class="col-5">Duration</dt>
+                    <dd class="col-7">@Format.Duration(Details.Duration)</dd>
+                    @if (Details.BitRate is { } bitRate)
+                    {
+                        <dt class="col-5">Overall bit rate</dt>
+                        <dd class="col-7">@Format.BitRate(bitRate)</dd>
+                    }
+                    <dt class="col-5">File title</dt>
+                    <dd class="col-7 sv-file-name">
+                        @if (string.IsNullOrEmpty(Details.Title))
+                        {
+                            <span class="sv-missing">None</span>
+                        }
+                        else
+                        {
+                            @Details.Title
+                        }
+                    </dd>
+                    <dt class="col-5">Chapters</dt>
+                    <dd class="col-7">@Details.Chapters.Count</dd>
+                    <dt class="col-5">Attachments</dt>
+                    <dd class="col-7">@Details.Attachments</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-8">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-list-ol me-2"></i>Tracks</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0 sv-track-table align-middle">
+                    <thead>
+                    <tr>
+                        <th class="ps-3" style="width: 35px;">#</th>
+                        <th>Language</th>
+                        <th>Format</th>
+                        <th>Name</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var track in Details.Tracks)
+                    {
+                        <tr>
+                            <td class="ps-3">@track.Index</td>
+                            <td><TrackBadge Track="track"/></td>
+                            <td><code>@track.FormatSummary</code></td>
+                            <td class="small">@track.Title</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @if (Details.HasDolbyVision)
+    {
+        var dv = _wholeFilm ?? Details.DolbyVision;
+        var track = Details.Video.First(v => v.DolbyVisionProfile != null);
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                    <span><i class="bi bi-brightness-high me-2"></i>Dolby Vision</span>
+                    <span class="badge text-bg-primary">Profile @track.DolbyVisionProfile @(track.EnhancementLayer ?? dv?.Layer)</span>
+                    @if (dv?.CmVersion is { } cm)
+                    {
+                        <span class="badge text-bg-secondary">@cm</span>
+                    }
+                    @if (dv != null)
+                    {
+                        <span class="small text-muted ms-auto">
+                            @(dv.WholeFilm ? $"Whole film, {dv.Frames:N0} frames" : $"First {dv.Frames:N0} frames")
+                        </span>
+                        @if (!dv.WholeFilm)
+                        {
+                            <button class="btn btn-sm btn-outline-secondary" disabled="@_readingWholeFilm" @onclick="ReadWholeFilm"
+                                    title="Reads every frame for the brightness of the whole film. Several minutes for a remux.">
+                                @if (_readingWholeFilm)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    <span>Reading the whole film…</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                    <span>Read the whole film</span>
+                                }
+                            </button>
+                        }
+                    }
+                </div>
+                <div class="card-body p-0">
+                    @if (_wholeFilmError != null)
+                    {
+                        <p class="text-danger small m-3">@_wholeFilmError</p>
+                    }
+                    @if (dv == null)
+                    {
+                        <p class="sv-missing m-3">@(Details.DolbyVisionError ?? "Not read: Specarr__ReadDolbyVision is off.")</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                            @foreach (var line in dv.Lines)
+                            {
+                                <tr>
+                                    <td class="ps-3 text-muted text-nowrap" style="width: 16rem;">@line.Key</td>
+                                    <td class="small sv-multiline">@line.Value</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-tags me-2"></i>Tags</div>
+            <div class="card-body p-0">
+                @if (Details.Tags.Count == 0)
+                {
+                    <p class="sv-missing m-3">No global tags.</p>
+                }
+                else
+                {
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                        @foreach (var tag in Details.Tags)
+                        {
+                            <tr>
+                                <td class="ps-3 text-muted text-nowrap"><code>@tag.Key</code></td>
+                                <td class="sv-file-name">@tag.Value</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-bookmark me-2"></i>Chapters</div>
+            <div class="card-body p-0">
+                @if (Details.Chapters.Count == 0)
+                {
+                    <p class="sv-missing m-3">No chapters.</p>
+                }
+                else
+                {
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                        @foreach (var (chapter, i) in Details.Chapters.Select((c, i) => (c, i)))
+                        {
+                            <tr>
+                                <td class="ps-3 text-muted" style="width: 3rem;">@(i + 1)</td>
+                                <td class="text-muted" style="width: 6rem;">@Format.Duration(chapter.Start)</td>
+                                <td>@chapter.Title</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] [EditorRequired] public required MediaDetails Details { get; set; }
+
+    private string? _path;
+    private DolbyVisionDetails? _wholeFilm;
+    private string? _wholeFilmError;
+    private bool _readingWholeFilm;
+
+    protected override void OnParametersSet()
+    {
+        if (_path == Details.Path)
+        {
+            return;
+        }
+
+        _path = Details.Path;
+        _wholeFilm = Probe.CachedWholeFilm(Details.Path);
+        _wholeFilmError = null;
+        _readingWholeFilm = false;
+    }
+
+    private async Task ReadWholeFilm()
+    {
+        var path = Details.Path;
+        _readingWholeFilm = true;
+        _wholeFilmError = null;
+        var result = await Probe.WholeFilmDolbyVisionAsync(path);
+
+        // The page may show another file by now.
+        if (path != Details.Path)
+        {
+            return;
+        }
+
+        _readingWholeFilm = false;
+        _wholeFilm = result.Details;
+        _wholeFilmError = result.Error;
+    }
+}

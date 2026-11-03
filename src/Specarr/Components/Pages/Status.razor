@@ -1,0 +1,213 @@
+@page "/status"
+@inherits IndexComponentBase
+@inject IndexStore Store
+@inject IJSRuntime JS
+
+<PageTitle>Status · Specarr</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4 sv-page-header">
+    <h2 class="mb-0"><i class="bi bi-info-circle me-2"></i>Status</h2>
+    <ScanProgress/>
+</div>
+
+@{
+    var files = Snapshot.Files;
+    var pending = files.Count(f => !f.IsProbed);
+    var errors = files.Where(f => f.Error != null).ToList();
+}
+
+<div class="row g-3">
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-collection me-2"></i>Libraries</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                    <tr>
+                        <th class="ps-3">Name</th>
+                        <th>Path</th>
+                        <th>Kind</th>
+                        <th class="text-end">Titles</th>
+                        <th class="text-end pe-3">Files</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var library in Index.Options.Libraries)
+                    {
+                        <tr>
+                            <td class="ps-3">@library.Name</td>
+                            <td class="sv-path">
+                                @library.Path
+                                @if (!Directory.Exists(library.Path))
+                                {
+                                    <i class="bi bi-x-circle text-danger ms-1" title="Not mounted"></i>
+                                }
+                            </td>
+                            <td>@library.Kind@(library.Categories ? ", categories" : "")</td>
+                            <td class="text-end">@Snapshot.Titles.Count(t => t.Library == library)</td>
+                            <td class="text-end pe-3">@files.Count(f => f.Library == library).ToString("N0")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+                <p class="small text-muted m-3">
+                    Folders starting with a dot (.recycle) and <code>@string.Join(", ", Index.Options.IgnoredFolderNames)</code> are skipped.
+                    Files in <code>@string.Join(", ", Index.Options.ExtrasFolderNames)</code> folders count as extras.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-arrow-repeat me-2"></i>Background scan</div>
+            <div class="card-body small">
+                <dl class="row mb-3">
+                    <dt class="col-5">Folders listed</dt>
+                    <dd class="col-7">
+                        @(Snapshot.WalkedUtc == DateTime.MinValue ? "Not yet" : $"{Format.TimeAgo(Snapshot.WalkedUtc)}, in {Snapshot.WalkElapsed.TotalSeconds:0.0} s")
+                    </dd>
+                    <dt class="col-5">Next listing</dt>
+                    <dd class="col-7">
+                        @(Index.NextWalkUtc is { } next ? $"{Format.TimeUntil(next)} (every {Index.Options.RescanHours:0.#} h)" : "Only on request")
+                    </dd>
+                    <dt class="col-5">Files read</dt>
+                    <dd class="col-7">@((files.Count - pending).ToString("N0")) of @files.Count.ToString("N0")</dd>
+                    <dt class="col-5">Could not be read</dt>
+                    <dd class="col-7">@errors.Count</dd>
+                    <dt class="col-5">Reading</dt>
+                    <dd class="col-7 sv-path">@(Index.IsPaused ? "Paused" : Index.CurrentFile ?? "Nothing")</dd>
+                </dl>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-outline-primary" disabled="@Index.IsWalking" @onclick="Index.RequestWalk">
+                        <i class="bi bi-search me-1"></i>Look for new files now
+                    </button>
+                    @if (Index.IsPaused)
+                    {
+                        <button class="btn btn-sm btn-outline-success" @onclick="Index.Resume"><i class="bi bi-play me-1"></i>Resume reading</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="Index.Pause"
+                                title="Stop reading files in the background, e.g. while the disks are busy">
+                            <i class="bi bi-pause me-1"></i>Pause reading
+                        </button>
+                    }
+                    @if (errors.Count > 0)
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="Index.RetryErrors"><i class="bi bi-arrow-clockwise me-1"></i>Retry failed files</button>
+                    }
+                    <button class="btn btn-sm btn-outline-danger" @onclick="ReadEverythingAgain"
+                            title="Forget what was read and read every file again, e.g. after a Specarr update that reads more">
+                        <i class="bi bi-trash me-1"></i>Read everything again
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-database me-2"></i>Cache</div>
+            <div class="card-body small">
+                @if (Store.FilePath is { } path)
+                {
+                    <p class="mb-1"><span class="sv-path">@path</span>, @Format.Size(Store.FileSizeBytes)</p>
+                    <p class="text-muted mb-0">What ffprobe, dovi_tool and mediainfo printed for each file, with its size and date.
+                        A file is only read again when it changes.</p>
+                }
+                else
+                {
+                    <p class="text-warning mb-0"><i class="bi bi-exclamation-triangle me-1"></i>
+                        The cache is only in memory: <span class="sv-path">@Index.Options.DatabasePath</span> could not be written.
+                        Every file is read again after a restart. Mount a writable folder at <code>/config</code>.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-tools me-2"></i>Tools</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                    @foreach (var (name, version) in _tools)
+                    {
+                        <tr>
+                            <td class="ps-3"><code>@name</code></td>
+                            <td class="small">@version</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+                <p class="small text-muted m-3">
+                    HDR10+ check @(Index.Options.DetectHdr10Plus ? "on" : "off"),
+                    Dolby Vision details @(Index.Options.ReadDolbyVision ? "on" : "off"),
+                    mediainfo @(Index.Options.ReadMediaInfo ? "on" : "off"),
+                    @Index.Options.ProbeConcurrency @(Index.Options.ProbeConcurrency == 1 ? "file" : "files") at a time.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    @if (Snapshot.Problems.Count > 0 || errors.Count > 0)
+    {
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header"><i class="bi bi-exclamation-triangle me-2"></i>Problems</div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                        @foreach (var problem in Snapshot.Problems)
+                        {
+                            <tr><td class="ps-3 small" colspan="2">@problem</td></tr>
+                        }
+                        @foreach (var file in errors.Take(100))
+                        {
+                            <tr>
+                                <td class="ps-3 small"><a href="file/@file.Id" class="sv-file-name">@file.FileName</a></td>
+                                <td class="small text-danger">@file.Error</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<(string Name, string Version)> _tools = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tools =
+        [
+            (MediaProbe.FfprobeExecutable, await FirstLine(MediaProbe.FfprobeExecutable, "-version")),
+            (MediaProbe.MediaInfoExecutable, await FirstLine(MediaProbe.MediaInfoExecutable, "--version", last: true)),
+            (DoviTool.Executable, await FirstLine(DoviTool.Executable, "--version"))
+        ];
+    }
+
+    private async Task ReadEverythingAgain()
+    {
+        if (await JS.InvokeAsync<bool>("confirm", $"Forget what was read from {Snapshot.Files.Count:N0} files and read them all again? This keeps the disks busy for a while."))
+        {
+            Index.ReadEverythingAgain();
+        }
+    }
+
+    private static async Task<string> FirstLine(string tool, string argument, bool last = false)
+    {
+        var result = await ProcessRunner.RunAsync(tool, [argument], TimeSpan.FromSeconds(10));
+        if (!result.Success)
+        {
+            return result.Error.Trim().Length > 0 ? result.Error.Trim() : "Not found";
+        }
+
+        var lines = result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return lines.Length == 0 ? "" : last ? lines[^1] : lines[0];
+    }
+}

@@ -1,0 +1,81 @@
+@* The source guess with its clues, next to what the file name or SOURCE tag says. *@
+<div class="card h-100">
+    <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-disc"></i><span>Source</span>
+        @if (File.Summary is { } summary && summary.Source != SourceKind.Unknown)
+        {
+            <span class="ms-auto small text-muted">@summary.SourceConfidence.ToString().ToLowerInvariant() confidence</span>
+        }
+    </div>
+    <div class="card-body small">
+        @if (File.Summary is not { } s)
+        {
+            <span class="sv-missing">Not read yet.</span>
+        }
+        else
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <span class="text-muted">Guessed</span>
+                <SourceBadge File="File"/>
+                <span>@s.Source.Describe()</span>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <span class="text-muted">Named</span>
+                @if (File.Named is { } named)
+                {
+                    <span class="badge sv-badge-muted">@named.Kind.Word()</span>
+                    <span class="text-muted">from the @named.From</span>
+                    @if (File.SourceMismatch)
+                    {
+                        <span class="text-warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>does not match the streams</span>
+                    }
+                    else if (named.Kind == s.Source)
+                    {
+                        <i class="bi bi-check-circle text-success" title="Matches the guess"></i>
+                    }
+                }
+                else
+                {
+                    <span class="sv-missing">No source word in the file name or tags</span>
+                }
+            </div>
+            @if (Guess is { } guess && guess.Clues.Count > 0)
+            {
+                <button class="btn btn-link btn-sm p-0" @onclick="() => _showClues = !_showClues">
+                    <i class="bi @(_showClues ? "bi-chevron-up" : "bi-chevron-down") me-1"></i>@guess.Clues.Count clues
+                </button>
+                @if (_showClues)
+                {
+                    <ul class="list-unstyled mt-2 mb-2">
+                        @foreach (var clue in guess.Clues)
+                        {
+                            <li class="mb-1">
+                                @clue.Text
+                                @foreach (var family in clue.For)
+                                {
+                                    <span class="badge sv-clue-for ms-1">+@clue.Points[family] @family.Word()</span>
+                                }
+                                @foreach (var family in clue.Against)
+                                {
+                                    <span class="badge sv-clue-against ms-1">@clue.Points[family] @family.Word()</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                    <div class="text-muted">
+                        Points: @string.Join(", ", guess.Scores.OrderByDescending(x => x.Value).Select(x => $"{x.Key.Word()} {x.Value}"))
+                    </div>
+                }
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] [EditorRequired] public required IndexedFile File { get; set; }
+
+    /// <summary>The full guess with clues, once the details are loaded.</summary>
+    [Parameter] public SourceGuess? Guess { get; set; }
+
+    private bool _showClues = true;
+}

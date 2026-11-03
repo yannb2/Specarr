@@ -1,0 +1,281 @@
+@page "/"
+@inherits IndexComponentBase
+@inject NavigationManager Navigation
+
+<PageTitle>Library · Specarr</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4 sv-page-header">
+    <h2 class="mb-0"><i class="bi bi-collection-play me-2"></i>Library</h2>
+    <ScanProgress/>
+</div>
+
+@foreach (var problem in Snapshot.Problems.Take(5))
+{
+    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-2"></i>@problem</div>
+}
+
+@if (Index.IsLoading)
+{
+    <div class="text-center py-5">
+        <span class="spinner-border" role="status"></span>
+        <div class="small text-muted mt-2">Looking through the folders…</div>
+    </div>
+    return;
+}
+
+<div class="row g-3 mb-4">
+    @foreach (var library in Index.Options.Libraries)
+    {
+        var titles = Snapshot.Titles.Where(t => t.Library == library && t.MainFiles.Any()).ToList();
+        var files = titles.SelectMany(t => t.Files).ToList();
+        <div class="col-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">@library.Name</div>
+                    <div class="fs-4 fw-semibold">@titles.Count</div>
+                    <div class="small text-muted">
+                        @if (library.Kind == LibraryKind.Series)
+                        {
+                            <span>shows, @files.Count(f => !f.Place.IsExtra) episodes</span>
+                        }
+                        else
+                        {
+                            <span>movies, @files.Count(f => !f.Place.IsExtra) files</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small">Size</div>
+                <div class="fs-4 fw-semibold">@Format.Size(Snapshot.Files.Sum(f => f.SizeBytes))</div>
+                <div class="small text-muted">@Snapshot.Files.Count video files</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="card h-100 text-decoration-none" href="files?mismatch=true">
+            <div class="card-body">
+                <div class="text-muted small">Source to check</div>
+                <div class="fs-4 fw-semibold">@Snapshot.Files.Count(f => f.SourceMismatch)</div>
+                <div class="small text-muted">name and streams disagree</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="row mb-3 g-2 sv-filter-row">
+    <div class="col">
+        <input class="form-control form-control-sm" type="search" placeholder="Search titles"
+               value="@Search" @oninput='e => Update(search: e.Value?.ToString() ?? "")'/>
+    </div>
+    <div class="col-12 col-md-auto d-flex flex-wrap gap-2 align-items-center">
+        @if (Index.Options.Libraries.Count > 1)
+        {
+            <div class="btn-group btn-group-sm">
+                <button class="btn @(string.IsNullOrEmpty(Library) ? "btn-primary" : "btn-outline-primary")" @onclick='() => Update(library: "", category: "")'>All</button>
+                @foreach (var library in Index.Options.Libraries)
+                {
+                    <button class="btn @(Library == library.Name ? "btn-primary" : "btn-outline-primary")"
+                            @onclick='() => Update(library: library.Name, category: "")'>@library.Name</button>
+                }
+            </div>
+        }
+        @if (Categories.Count > 1)
+        {
+            <select class="form-select form-select-sm" style="width: auto;" value="@Category" @onchange='e => Update(category: e.Value?.ToString() ?? "")'>
+                <option value="">All categories</option>
+                @foreach (var category in Categories)
+                {
+                    <option value="@category">@category</option>
+                }
+            </select>
+        }
+        <select class="form-select form-select-sm" style="width: auto;" value="@(Sort ?? "name")" @onchange='e => Update(sort: e.Value?.ToString() ?? "name")'>
+            <option value="name">Sort by name</option>
+            <option value="year">Sort by year</option>
+            <option value="added">Newest files first</option>
+            <option value="size">Largest first</option>
+        </select>
+    </div>
+</div>
+
+@{
+    var shown = Filtered().ToList();
+}
+
+@if (shown.Count == 0)
+{
+    <p class="text-muted">@(Snapshot.Titles.Count == 0 ? "No video files found. See the Status page." : "Nothing matches the filters.")</p>
+}
+else
+{
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover table-sm mb-0 align-middle sv-card-table">
+                <thead>
+                <tr>
+                    <th class="ps-3">Title</th>
+                    <th>Category</th>
+                    <th>Files</th>
+                    <th>Best</th>
+                    <th>Source</th>
+                    <th class="text-end pe-3">Size</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var title in shown.Take(_shownCount))
+                {
+                    var main = title.MainFiles.ToList();
+                    var best = main.Where(f => f.Summary != null)
+                        .OrderByDescending(f => Format.ResolutionRank(f.Summary!.Resolution))
+                        .ThenByDescending(f => f.Summary!.HasDolbyVision)
+                        .FirstOrDefault();
+                    <tr class="sv-clickable-row" @onclick="() => Navigation.NavigateTo(TitleLink(title))">
+                        <td class="ps-3">
+                            <a href="@TitleLink(title)" class="text-decoration-none fw-semibold" @onclick:stopPropagation="true">@title.Name</a>
+                            @if (title.Year is { } year)
+                            {
+                                <span class="text-muted ms-1">@year</span>
+                            }
+                        </td>
+                        <td class="sv-cell-inline">
+                            @if (title.Category != null)
+                            {
+                                <span class="badge sv-badge-muted">@title.Category</span>
+                            }
+                        </td>
+                        <td class="sv-cell-inline small text-nowrap">
+                            @if (title.Library.Kind == LibraryKind.Series)
+                            {
+                                <span>@(title.SeasonCount > 0 ? $"{title.SeasonCount} {(title.SeasonCount == 1 ? "season" : "seasons")}, " : "")@main.Count ep.</span>
+                            }
+                            else
+                            {
+                                <span>@main.Count @(main.Count == 1 ? "file" : "files")</span>
+                            }
+                            @if (title.Files.Count > main.Count)
+                            {
+                                <span class="text-muted"> + @(title.Files.Count - main.Count) extras</span>
+                            }
+                        </td>
+                        <td class="sv-cell-inline"><SpecBadges Summary="best?.Summary"/></td>
+                        <td class="sv-cell-inline">
+                            @foreach (var file in main.Where(f => f.Summary != null).DistinctBy(f => f.Summary!.Source).Take(3))
+                            {
+                                <SourceBadge File="file"/>
+                            }
+                            @if (main.Any(f => f.SourceMismatch) && !main.Where(f => f.Summary != null).DistinctBy(f => f.Summary!.Source).Take(3).Any(f => f.SourceMismatch))
+                            {
+                                <i class="bi bi-exclamation-triangle-fill text-warning ms-1" title="A file's name and streams disagree on the source"></i>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap pe-3 sv-cell-end">@Format.Size(title.SizeBytes)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (shown.Count > _shownCount)
+    {
+        <div class="text-center mt-3">
+            <button class="btn btn-sm btn-outline-secondary" @onclick="() => _shownCount += PageSize">
+                Show more (@(shown.Count - _shownCount) left)
+            </button>
+        </div>
+    }
+
+    <p class="small text-muted mt-3">@shown.Count @(shown.Count == 1 ? "title" : "titles"), @Format.Size(shown.Sum(t => t.SizeBytes)).</p>
+}
+
+@code {
+    private const int PageSize = 200;
+    private int _shownCount = PageSize;
+
+    [SupplyParameterFromQuery(Name = "search")] public string? QuerySearch { get; set; }
+    [SupplyParameterFromQuery(Name = "library")] public string? QueryLibrary { get; set; }
+    [SupplyParameterFromQuery(Name = "category")] public string? QueryCategory { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? QuerySort { get; set; }
+
+    // The filters live here while typing; the address bar follows them so a view can be bookmarked.
+    private string? Search { get; set; }
+    private string? Library { get; set; }
+    private string? Category { get; set; }
+    private string? Sort { get; set; }
+    private string? _ownUri;
+
+    protected override void OnParametersSet()
+    {
+        // Only take the address bar's values when someone else changed it (a link, back button).
+        if (Navigation.Uri != _ownUri)
+        {
+            Search = QuerySearch;
+            Library = QueryLibrary;
+            Category = QueryCategory;
+            Sort = QuerySort;
+        }
+    }
+
+    private List<string> Categories => Snapshot.Titles
+        .Where(t => string.IsNullOrEmpty(Library) || t.Library.Name == Library)
+        .Select(t => t.Category)
+        .OfType<string>()
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Order(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private static string TitleLink(TitleEntry title) => $"title/{title.Id}";
+
+    private IEnumerable<TitleEntry> Filtered()
+    {
+        IEnumerable<TitleEntry> titles = Snapshot.Titles.Where(t => t.MainFiles.Any());
+
+        if (!string.IsNullOrEmpty(Library))
+        {
+            titles = titles.Where(t => t.Library.Name == Library);
+        }
+
+        if (!string.IsNullOrEmpty(Category))
+        {
+            titles = titles.Where(t => string.Equals(t.Category, Category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(Search))
+        {
+            var words = Search.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            titles = titles.Where(t => words.All(w => t.NameWithYear.Contains(w, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        return Sort switch
+        {
+            "year" => titles.OrderByDescending(t => t.Year ?? 0).ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase),
+            "added" => titles.OrderByDescending(t => t.NewestUtc),
+            "size" => titles.OrderByDescending(t => t.SizeBytes),
+            _ => titles
+        };
+    }
+
+    private void Update(string? search = null, string? library = null, string? category = null, string? sort = null)
+    {
+        _shownCount = PageSize;
+        Search = search ?? Search;
+        Library = library ?? Library;
+        Category = category ?? Category;
+        Sort = sort ?? Sort;
+        _ownUri = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["search"] = Empty(Search),
+            ["library"] = Empty(Library),
+            ["category"] = Empty(Category),
+            ["sort"] = Sort is "name" ? null : Empty(Sort)
+        });
+        Navigation.NavigateTo(_ownUri, replace: true);
+    }
+
+    private static string? Empty(string? value) => string.IsNullOrEmpty(value) ? null : value;
+}

@@ -1,0 +1,32 @@
+@* How far the background scan is, for page headers. *@
+@inherits IndexComponentBase
+@{
+    var files = Snapshot.Files;
+    var pending = files.Count(f => !f.IsProbed);
+}
+<a href="status" class="text-decoration-none small text-muted d-flex align-items-center gap-2" title="@(Index.CurrentFile ?? "")">
+    @if (Index.IsWalking || Index.IsLoading)
+    {
+        <span class="spinner-border spinner-border-sm" role="status"></span>
+        <span>Looking for files…</span>
+    }
+    else if (pending > 0 && Index.IsPaused)
+    {
+        <i class="bi bi-pause-circle"></i>
+        <span>Paused, @pending.ToString("N0") to read</span>
+    }
+    else if (pending > 0)
+    {
+        var done = files.Count - pending;
+        <span class="spinner-grow spinner-grow-sm text-primary" role="status"></span>
+        <span>Reading files: @done.ToString("N0") of @files.Count.ToString("N0")</span>
+        <div class="progress d-none d-sm-flex" style="width: 6rem; height: 0.4rem;">
+            <div class="progress-bar" style="width: @(files.Count == 0 ? 0 : done * 100 / files.Count)%"></div>
+        </div>
+    }
+    else
+    {
+        <i class="bi bi-check-circle text-success"></i>
+        <span>All @files.Count.ToString("N0") files read</span>
+    }
+</a>

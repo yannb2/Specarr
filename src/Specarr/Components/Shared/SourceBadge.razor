@@ -1,0 +1,24 @@
+@* The guessed source, faded when the guess is unsure, with a warning when the file name or SOURCE tag says otherwise. *@
+@if (File.Summary is { } summary)
+{
+    if (summary.Source == SourceKind.Unknown)
+    {
+        <span class="badge sv-badge-muted" title="Not enough clues to guess the source">?</span>
+    }
+    else
+    {
+        <span class="badge sv-source sv-source-@summary.Source.ToString().ToLowerInvariant() sv-confidence-@summary.SourceConfidence.ToString().ToLowerInvariant()"
+              title="Guessed: @summary.Source.Describe() (@summary.SourceConfidence.ToString().ToLowerInvariant() confidence)">
+            @summary.Source.Word()
+        </span>
+    }
+    @if (File.SourceMismatch)
+    {
+        <i class="bi bi-exclamation-triangle-fill text-warning ms-1"
+           title="The @File.Named!.From says @File.Named.Kind.Word(), the streams look like @summary.Source.Word()"></i>
+    }
+}
+
+@code {
+    [Parameter] [EditorRequired] public required IndexedFile File { get; set; }
+}

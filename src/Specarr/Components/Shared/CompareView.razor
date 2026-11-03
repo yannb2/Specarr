@@ -1,0 +1,129 @@
+@* Two files side by side, e.g. two cuts of a movie. Rows that differ are highlighted. *@
+<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <span>
+        @if (_differences == 0)
+        {
+            <i class="bi bi-check-circle text-success me-1"></i>
+            <span>The two files look the same.</span>
+        }
+        else
+        {
+            <i class="bi bi-exclamation-diamond text-warning me-1"></i>
+            <span>@_differences @(_differences == 1 ? "difference" : "differences")</span>
+        }
+    </span>
+    <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="only-diff" @bind="_onlyDifferences"/>
+        <label class="form-check-label" for="only-diff">Only show differences</label>
+    </div>
+</div>
+
+@foreach (var group in _sections)
+{
+    var rows = _onlyDifferences ? group.Rows.Where(r => r.Differs).ToList() : group.Rows.ToList();
+    if (rows.Count == 0)
+    {
+        continue;
+    }
+
+    var collapsed = _collapsed.Contains(group.Title);
+    <div class="card mb-3">
+        <div class="card-header d-flex align-items-center sv-section-toggle" @onclick="() => Toggle(group.Title)">
+            <i class="bi @group.Icon me-2"></i>@group.Title
+            @if (group.DifferenceCount > 0)
+            {
+                <span class="badge text-bg-warning ms-2">@group.DifferenceCount</span>
+            }
+            <i class="bi @(collapsed ? "bi-chevron-down" : "bi-chevron-up") ms-auto"></i>
+        </div>
+        @if (!collapsed)
+        {
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0 sv-compare-table align-middle">
+                    <thead>
+                    <tr>
+                        <th class="ps-3"></th>
+                        <th class="sv-file-name">@LeftLabel</th>
+                        <th class="sv-file-name">@RightLabel</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var row in rows)
+                    {
+                        <tr class="@(row.Differs ? "sv-diff" : null)">
+                            <td class="ps-3 small">
+                                @if (group.Title == "Tags")
+                                {
+                                    <code>@row.Label</code>
+                                }
+                                else
+                                {
+                                    @row.Label
+                                }
+                            </td>
+                            @if (row.IsTrack)
+                            {
+                                <td><TrackCell Track="row.LeftTrack"/></td>
+                                <td><TrackCell Track="row.RightTrack"/></td>
+                            }
+                            else
+                            {
+                                <td class="sv-multiline">@Value(row.Left)</td>
+                                <td class="sv-multiline">@Value(row.Right)</td>
+                            }
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] [EditorRequired] public required MediaDetails Left { get; set; }
+    [Parameter] [EditorRequired] public required MediaDetails Right { get; set; }
+    [Parameter] public string LeftLabel { get; set; } = "This file";
+    [Parameter] public string RightLabel { get; set; } = "Other file";
+
+    private List<CompareSection> _sections = [];
+    private readonly HashSet<string> _collapsed = [];
+    private int _differences;
+    private bool _onlyDifferences;
+
+    protected override void OnParametersSet()
+    {
+        _sections = Comparison.Build(Left, Right);
+        _differences = _sections.Sum(s => s.DifferenceCount);
+
+        // Long chapter lists that match say nothing; start them folded.
+        _collapsed.Clear();
+        foreach (var section in _sections.Where(s => s.Title == "Chapters" && s.DifferenceCount == 0))
+        {
+            _collapsed.Add(section.Title);
+        }
+    }
+
+    private void Toggle(string title)
+    {
+        if (!_collapsed.Remove(title))
+        {
+            _collapsed.Add(title);
+        }
+    }
+
+    private static RenderFragment Value(string? value) => builder =>
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "sv-missing");
+            builder.AddContent(2, "None");
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.AddContent(3, value);
+        }
+    };
+}

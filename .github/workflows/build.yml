@@ -26,11 +26,16 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # For the tests that read a real Dolby Vision sample.
+      - name: Tool update script tests
+        run: python3 -I -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
+      # For the tests that read a real Dolby Vision sample; dovi_tool at the version the Dockerfile pins.
       - name: Install dovi_tool and ffprobe
         run: |
+          set -euo pipefail
+          dovi=$(sed -n 's/^ARG DOVI_TOOL_VERSION=//p' Dockerfile)
           sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
-          curl -fsSL https://github.com/quietvoid/dovi_tool/releases/download/2.3.4/dovi_tool-2.3.4-x86_64-unknown-linux-musl.tar.gz | sudo tar -xz -C /usr/local/bin
+          curl -fsSL "https://github.com/quietvoid/dovi_tool/releases/download/${dovi}/dovi_tool-${dovi}-x86_64-unknown-linux-musl.tar.gz" | sudo tar -xz -C /usr/local/bin
           dovi_tool --version
 
       - name: Test
@@ -88,12 +93,14 @@ jobs:
           docker run -d --name smoke -p 8185:8185 specarr:smoke
           for i in $(seq 1 30); do curl -fs http://localhost:8185/health && break; sleep 1; done
           curl -fsS -o /dev/null http://localhost:8185/_framework/blazor.web.js
+          curl -fsS http://localhost:8185/tools | grep -q 'Tools'
           curl -fsS http://localhost:8185/ | grep -q 'Specarr'
           curl -fsS http://localhost:8185/api/stats | grep -q '"files"'
           docker exec smoke test -f /config/specarr.db
           docker exec smoke dovi_tool --version
           docker exec smoke ffprobe -version
-          docker exec smoke mediainfo --version
+          docker exec smoke mediainfo --version | grep "v$(sed -n 's/^ARG MEDIAINFO_VERSION=//p' Dockerfile)"
+          docker exec smoke ffprobe -version | grep "version n$(sed -n 's/^ARG FFMPEG_VERSION=//p' Dockerfile)"
           docker rm -f smoke
 
       - name: Build and push

@@ -1,3 +1,6 @@
+@implements IDisposable
+@inject ToolStatusService Tools
+
 <nav class="sv-sidebar @(_collapsed ? "collapsed" : "") @(MobileOpen ? "sv-mobile-open" : "")">
     <div class="sv-sidebar-header d-none d-md-flex">
         <a href="" class="d-flex align-items-center gap-2 text-decoration-none">
@@ -24,6 +27,16 @@
                 <NavLink class="nav-link" href="status" @onclick="Close">
                     <i class="bi bi-info-circle"></i>
                     <span>Status</span>
+                </NavLink>
+            </li>
+            <li class="nav-item">
+                <NavLink class="nav-link" href="tools" @onclick="Close">
+                    <i class="bi bi-tools"></i>
+                    <span>Tools</span>
+                    @if (Tools.UpdateCount > 0)
+                    {
+                        <span class="badge rounded-pill text-bg-info ms-auto" title="Newer tool versions">@Tools.UpdateCount</span>
+                    }
                 </NavLink>
             </li>
         </ul>
@@ -63,6 +76,12 @@
     [Parameter] public EventCallback<bool> MobileOpenChanged { get; set; }
 
     private bool _collapsed;
+
+    protected override void OnInitialized() => Tools.Changed += OnToolsChanged;
+
+    private void OnToolsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Tools.Changed -= OnToolsChanged;
 
     private async Task Close()
     {

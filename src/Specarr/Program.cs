@@ -3,6 +3,7 @@ using Specarr.Components;
 using Specarr.Library;
 using Specarr.Media;
 using Specarr.Options;
+using Specarr.Tools;
 
 // Numbers and dates the same way everywhere (23.976 fps, not 23,976).
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -19,6 +20,9 @@ builder.Services.AddSingleton<MediaProbe>();
 builder.Services.AddSingleton<LibraryIndex>();
 builder.Services.AddHostedService(services => services.GetRequiredService<LibraryIndex>());
 
+builder.Services.AddSingleton<ToolStatusService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<ToolStatusService>());
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -34,7 +38,8 @@ app.MapStaticAssets();
 app.MapGet("/health", () => Results.Ok("ok"));
 
 // Counts for a dashboard (Homepage's custom API widget). Read-only, no key.
-app.MapGet("/api/stats", (LibraryIndex index) => Results.Ok(LibraryStats.From(index)));
+app.MapGet("/api/stats", (LibraryIndex index, ToolStatusService tools) =>
+    Results.Ok(LibraryStats.From(index) with { ToolUpdates = tools.UpdateCount }));
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

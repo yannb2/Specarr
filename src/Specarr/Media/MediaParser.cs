@@ -120,9 +120,14 @@ public static class MediaParser
             IsOriginal = disposition.Original == 1,
             IsDub = disposition.Dub == 1,
             BitRate = ParseLong(stream.BitRate) ?? StatisticsBitRate(stream.Tags),
+            StreamSize = ParseLong(GetTag(stream.Tags, "NUMBER_OF_BYTES") ?? GetTag(stream.Tags, "NUMBER_OF_BYTES-eng")),
+            ElementCount = type == TrackType.Subtitles
+                ? ParseLong(GetTag(stream.Tags, "NUMBER_OF_FRAMES") ?? GetTag(stream.Tags, "NUMBER_OF_FRAMES-eng"))
+                : null,
             Width = type == TrackType.Video ? stream.Width : null,
             Height = type == TrackType.Video ? stream.Height : null,
-            BitDepth = type == TrackType.Video ? BitDepth(stream) : null,
+            BitDepth = type == TrackType.Video ? BitDepth(stream)
+                : type == TrackType.Audio ? AudioBitDepth(stream) : null,
             FrameRate = type == TrackType.Video ? ParseRate(stream.AverageFrameRate) ?? ParseRate(stream.FrameRate) : null,
             HdrFormat = type == TrackType.Video ? HdrFormat(stream.ColorTransfer) : null,
             DolbyVisionProfile = DolbyVisionProfile(dovi),
@@ -301,6 +306,10 @@ public static class MediaParser
             : height >= 470 ? "480p"
             : $"{height}p";
     }
+
+    /// <summary>Lossless audio states it (FLAC, TrueHD, DTS-HD MA, PCM); lossy codecs say 0 or nothing.</summary>
+    private static int? AudioBitDepth(FFprobeStream stream) =>
+        int.TryParse(stream.BitsPerRawSample, NumberStyles.Integer, CultureInfo.InvariantCulture, out var bits) && bits > 0 ? bits : null;
 
     private static int? BitDepth(FFprobeStream stream)
     {

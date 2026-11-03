@@ -61,7 +61,9 @@ public sealed class MediaProbe(IOptions<SpecarrOptions> options, IndexStore stor
         var ticks = file.LastWriteTimeUtc.Ticks;
         if (!force && store.Get(path, size, ticks) is { } cached)
         {
-            return Task.FromResult(Build(path, size, cached));
+            return cached.MediaInfo is { Tracks: null } && options.Value.ReadMediaInfo
+                ? AddTrackFactsAsync(path, size, ticks, cached, cancellationToken)
+                : Task.FromResult(Build(path, size, cached));
         }
 
         var key = $"{path}|{size}|{ticks}";
@@ -100,6 +102,25 @@ public sealed class MediaProbe(IOptions<SpecarrOptions> options, IndexStore stor
         {
             _inFlight.TryRemove(key, out _);
         }
+    }
+
+    /// <summary>
+    /// A row cached before bit depth, stream size and count of elements were kept:
+    /// reads them with mediainfo now (a second or so) and keeps them, instead of
+    /// reading the whole library again.
+    /// </summary>
+    private async Task<ProbeResult> AddTrackFactsAsync(string path, long size, long ticks, RawProbe cached,
+        CancellationToken cancellationToken)
+    {
+        var info = await ProcessRunner.RunAsync(MediaInfoExecutable, ["--Output=JSON", path], TimeSpan.FromSeconds(60), cancellationToken);
+        if (!info.Success || cached.MediaInfo == null)
+        {
+            return Build(path, size, cached);
+        }
+
+        var raw = cached with { MediaInfo = cached.MediaInfo with { Tracks = MediaInfoTracks.Parse(info.Output) } };
+        store.UpdateMediaInfo(path, raw.MediaInfo);
+        return Build(path, size, raw);
     }
 
     /// <summary>Runs the tools. Returns what they printed, or why it failed.</summary>
@@ -215,6 +236,7 @@ public sealed class MediaProbe(IOptions<SpecarrOptions> options, IndexStore stor
             details.MediaInfoVideoBitRate = facts.VideoBitRate;
         }
 
+        MediaInfoTracks.Apply(details, raw.MediaInfo?.Tracks);
         AudioBitRate.Apply(details, raw.MediaInfo?.TrackBitRates, raw.MeasuredAudioBitRates);
 
         details.Source = SourceGuesser.Guess(details);

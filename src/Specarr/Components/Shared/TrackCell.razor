@@ -1,0 +1,24 @@
+@* One track in the comparison table: badge, format, then the track name. *@
+@if (Track == null)
+{
+    <span class="sv-missing">No track</span>
+}
+else
+{
+    <div>
+        <TrackBadge Track="Track"/>
+        <code>@Track.FormatSummary</code>
+    </div>
+    @if (!string.IsNullOrEmpty(Track.Title))
+    {
+        <div class="small mt-1">@Track.Title</div>
+    }
+    @if (Track.Flags.Any())
+    {
+        <div class="small text-muted">@string.Join(", ", Track.Flags)</div>
+    }
+}
+
+@code {
+    [Parameter] public TrackInfo? Track { get; set; }
+}

@@ -1,0 +1,41 @@
+using System.Globalization;
+using Specarr.Components;
+using Specarr.Library;
+using Specarr.Media;
+using Specarr.Options;
+
+// Numbers and dates the same way everywhere (23.976 fps, not 23,976).
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOptions<SpecarrOptions>()
+    .Bind(builder.Configuration.GetSection(SpecarrOptions.Section))
+    .PostConfigure(o => o.WithDefaults());
+
+builder.Services.AddSingleton<IndexStore>();
+builder.Services.AddSingleton<MediaProbe>();
+builder.Services.AddSingleton<LibraryIndex>();
+builder.Services.AddHostedService(services => services.GetRequiredService<LibraryIndex>());
+
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/error", createScopeForErrors: true);
+}
+
+app.UseAntiforgery();
+app.MapStaticAssets();
+app.MapGet("/health", () => Results.Ok("ok"));
+
+// Counts for a dashboard (Homepage's custom API widget). Read-only, no key.
+app.MapGet("/api/stats", (LibraryIndex index) => Results.Ok(LibraryStats.From(index)));
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.Run();

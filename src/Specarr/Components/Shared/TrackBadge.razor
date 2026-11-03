@@ -1,0 +1,54 @@
+@* Language badge like Muxarr's: green video, blue audio, yellow subtitles, with flag icons. *@
+<span class="badge @BadgeClass me-1">
+    <i class="bi @Icon me-1"></i>@(Track.Type == TrackType.Video ? "Video" : Track.LanguageName)
+    @if (Track.Type == TrackType.Audio && Track.ChannelLayout is { } channels)
+    {
+        <span class="opacity-75 ms-1">@channels</span>
+    }
+    @if (Track.IsDefault)
+    {
+        <i class="bi bi-play-circle ms-1" title="Default"></i>
+    }
+    @if (Track.IsForced)
+    {
+        <i class="bi bi-lock ms-1" title="Forced"></i>
+    }
+    @if (Track.IsHearingImpaired)
+    {
+        <i class="bi bi-ear ms-1" title="Hearing impaired (SDH)"></i>
+    }
+    @if (Track.IsCommentary)
+    {
+        <i class="bi bi-chat-quote ms-1" title="Commentary"></i>
+    }
+    @if (Track.IsVisualImpaired)
+    {
+        <i class="bi bi-eye ms-1" title="Audio description"></i>
+    }
+    @if (Track.IsOriginal)
+    {
+        <i class="bi bi-check-circle ms-1" title="Original language"></i>
+    }
+    @if (Track.IsDub)
+    {
+        <i class="bi bi-translate ms-1" title="Dub"></i>
+    }
+</span>
+
+@code {
+    [Parameter] [EditorRequired] public required TrackInfo Track { get; set; }
+
+    private string Icon => Track.Type switch
+    {
+        TrackType.Video => "bi-film",
+        TrackType.Audio => "bi-volume-up",
+        _ => "bi-chat-text"
+    };
+
+    private string BadgeClass => Track.Type switch
+    {
+        TrackType.Video => "bg-success text-white",
+        TrackType.Audio => "bg-primary text-white",
+        _ => "bg-warning text-dark"
+    };
+}

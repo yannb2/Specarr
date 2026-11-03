@@ -1,0 +1,74 @@
+{
+  "streams": [
+    {
+      "index": 0, "codec_name": "hevc", "codec_type": "video", "profile": "Main 10",
+      "width": 3840, "height": 2160, "pix_fmt": "yuv420p10le", "color_transfer": "smpte2084",
+      "color_primaries": "bt2020", "r_frame_rate": "24000/1001", "avg_frame_rate": "24000/1001",
+      "side_data_list": [
+        { "side_data_type": "DOVI configuration record", "dv_version_major": 1, "dv_version_minor": 0,
+          "dv_profile": 7, "dv_level": 6, "rpu_present_flag": 1, "el_present_flag": 1, "bl_present_flag": 1,
+          "dv_bl_signal_compatibility_id": 6 }
+      ],
+      "disposition": { "default": 1, "forced": 0, "hearing_impaired": 0, "visual_impaired": 0, "comment": 0, "original": 0, "dub": 0, "attached_pic": 0 },
+      "tags": { "language": "eng", "BPS": "62000000", "DURATION": "02:12:00.000000000" }
+    },
+    {
+      "index": 1, "codec_name": "truehd", "codec_type": "audio", "profile": "Dolby TrueHD + Dolby Atmos",
+      "sample_rate": "48000", "channels": 8, "channel_layout": "7.1",
+      "disposition": { "default": 1, "forced": 0, "hearing_impaired": 0, "visual_impaired": 0, "comment": 0, "original": 1, "dub": 0, "attached_pic": 0 },
+      "tags": { "language": "eng", "title": "English - TrueHD Atmos 7.1", "BPS-eng": "4500000" }
+    },
+    {
+      "index": 2, "codec_name": "dts", "codec_type": "audio", "profile": "DTS-HD MA + DTS:X",
+      "sample_rate": "48000", "channels": 8, "channel_layout": "7.1",
+      "disposition": { "default": 0, "forced": 0, "hearing_impaired": 0, "visual_impaired": 0, "comment": 0, "original": 0, "dub": 1, "attached_pic": 0 },
+      "tags": { "language": "fre", "title": "French - DTS:X 7.1" }
+    },
+    {
+      "index": 3, "codec_name": "ac3", "codec_type": "audio", "sample_rate": "48000", "channels": 2,
+      "channel_layout": "stereo", "bit_rate": "224000",
+      "disposition": { "default": 0, "forced": 0, "hearing_impaired": 0, "visual_impaired": 0, "comment": 1, "original": 0, "dub": 0, "attached_pic": 0 },
+      "tags": { "language": "eng", "title": "Commentary" }
+    },
+    {
+      "index": 4, "codec_name": "hdmv_pgs_subtitle", "codec_type": "subtitle",
+      "disposition": { "default": 1, "forced": 1, "hearing_impaired": 0, "visual_impaired": 0, "comment": 0, "original": 0, "dub": 0, "attached_pic": 0 },
+      "tags": { "language": "eng", "title": "English (Forced)" }
+    },
+    {
+      "index": 5, "codec_name": "subrip", "codec_type": "subtitle",
+      "disposition": { "default": 0, "forced": 0, "hearing_impaired": 1, "visual_impaired": 0, "comment": 0, "original": 0, "dub": 0, "attached_pic": 0 },
+      "tags": { "language": "eng", "title": "English SDH" }
+    },
+    {
+      "index": 6, "codec_name": "mjpeg", "codec_type": "video", "width": 600, "height": 900,
+      "disposition": { "default": 0, "forced": 0, "hearing_impaired": 0, "visual_impaired": 0, "comment": 0, "original": 0, "dub": 0, "attached_pic": 1 },
+      "tags": { "filename": "cover.jpg", "mimetype": "image/jpeg" }
+    },
+    {
+      "index": 7, "codec_name": "ttf", "codec_type": "attachment",
+      "tags": { "filename": "font.ttf", "mimetype": "font/ttf" }
+    }
+  ],
+  "chapters": [
+    { "id": 1, "time_base": "1/1000000000", "start_time": "0.000000", "end_time": "300.000000", "tags": { "title": "Opening" } },
+    { "id": 2, "time_base": "1/1000000000", "start_time": "300.000000", "end_time": "7920.000000", "tags": { "title": "Chapter 2" } }
+  ],
+  "format": {
+    "filename": "/movies/live-action/Alien (1979)/Alien (1979) [2160p][HEVC][DV HDR10][TrueHD Atmos-7.1][BDRemux].mkv",
+    "format_name": "matroska,webm", "format_long_name": "Matroska / WebM",
+    "duration": "7920.000000", "size": "80000000000", "bit_rate": "80808080",
+    "tags": {
+      "title": "Alien (1979)",
+      "encoder": "libebml v1.4.5 + libmatroska v1.7.1",
+      "creation_time": "2026-11-02T10:00:00.000000Z",
+      "IMPORTED": "2026-11-02",
+      "TMDB": "movie/348",
+      "EDITION": "Director's Cut",
+      "RELEASE_NAME": "Alien.1979.2160p.UHD.BluRay.Remux.DV.HDR.HEVC.TrueHD.Atmos.7.1-GRP",
+      "DV_PROFILE": "7 FEL",
+      "CUSTOM_THING": "x",
+      "IMDB": "tt0078748"
+    }
+  }
+}

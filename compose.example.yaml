@@ -1,0 +1,24 @@
+# Example service for the media VM's compose.yaml (/config/compose/compose.yaml).
+services:
+  specarr:                                   # browse the library: tracks, tags, Dolby Vision, guessed source
+    image: ghcr.io/yannb2/specarr:dev
+    container_name: specarr
+    user: 1000:1000                          # media; only needs to read the files
+    environment:
+      TZ: America/Toronto
+      # The defaults, shown here so they are easy to change:
+      # Specarr__Libraries__0__Name: Movies
+      # Specarr__Libraries__0__Path: /movies
+      # Specarr__Libraries__0__Kind: Movies
+      # Specarr__Libraries__1__Name: TV
+      # Specarr__Libraries__1__Path: /tv
+      # Specarr__Libraries__1__Kind: Series
+      # Specarr__RescanHours: "6"            # look for new and changed files every 6 hours
+      # Specarr__ProbeConcurrency: "1"       # files read at the same time in the background
+    ports:
+      - 8185:8185
+    volumes:
+      - /config/specarr:/config              # the cache of what was read from each file (specarr.db)
+      - /movies:/movies:ro
+      - /tv:/tv:ro
+    restart: unless-stopped

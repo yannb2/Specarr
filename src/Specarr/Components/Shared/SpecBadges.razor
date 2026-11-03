@@ -1,0 +1,29 @@
+@* Resolution, codec and dynamic range at a glance. *@
+@if (Summary == null)
+{
+    <span class="sv-missing small">Not read yet</span>
+}
+else
+{
+    @if (Summary.Resolution is { } resolution)
+    {
+        <span class="badge sv-res sv-res-@resolution me-1">@resolution</span>
+    }
+    @if (Summary.VideoCodec is { } codec)
+    {
+        <span class="badge sv-badge-muted me-1">@codec</span>
+    }
+    @if (Summary.DynamicRange is { } range && range != "SDR")
+    {
+        <span class="badge @(Summary.HasDolbyVision ? "sv-dv" : "sv-hdr") me-1">@range</span>
+    }
+    @if (ShowAudio && Summary.MainAudio is { } audio)
+    {
+        <span class="badge sv-audio me-1">@audio</span>
+    }
+}
+
+@code {
+    [Parameter] public FileSummary? Summary { get; set; }
+    [Parameter] public bool ShowAudio { get; set; }
+}

@@ -6,3 +6,6 @@ publish/
 .idea/
 *.user
 TestResults/
+*.db
+*.db-wal
+*.db-shm

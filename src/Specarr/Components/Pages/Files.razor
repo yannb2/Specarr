@@ -1,0 +1,274 @@
+@page "/files"
+@inherits IndexComponentBase
+@inject NavigationManager Navigation
+
+<PageTitle>Files · Specarr</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 sv-page-header">
+    <h2 class="mb-0"><i class="bi bi-table me-2"></i>Files</h2>
+    <ScanProgress/>
+</div>
+
+@{
+    var all = Snapshot.Files;
+    var summaries = all.Select(f => f.Summary).OfType<FileSummary>().ToList();
+}
+
+<div class="row g-2 mb-2 sv-filter-row">
+    <div class="col-12 col-lg">
+        <input class="form-control form-control-sm" type="search" placeholder="Search paths and titles"
+               value="@_filter.Search" @oninput="e => Set(_filter with { Search = e.Value?.ToString() })"/>
+    </div>
+    <div class="col-12 col-lg-auto d-flex flex-wrap gap-2">
+        @if (Index.Options.Libraries.Count > 1)
+        {
+            @Select("All libraries", _filter.Library, Index.Options.Libraries.Select(l => (l.Name, l.Name)), v => _filter with { Library = v, Category = null })
+        }
+        @Select("All categories", _filter.Category,
+            all.Where(f => _filter.Library == null || f.Library.Name == _filter.Library)
+                .Select(f => f.Place.Category).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).Order().Select(c => (c, c)),
+            v => _filter with { Category = v })
+        @Select("Any resolution", _filter.Resolution, [("2160p", "2160p"), ("1080p", "1080p"), ("720p", "720p"), ("sd", "SD")], v => _filter with { Resolution = v })
+        @Select("Any codec", _filter.Codec, summaries.Select(s => s.VideoCodec).OfType<string>().Distinct().Order().Select(c => (c, c)), v => _filter with { Codec = v })
+        @Select("Any range", _filter.Range,
+            [("sdr", "SDR"), ("hdr10", "HDR10"), ("hdr10plus", "HDR10+"), ("hlg", "HLG"), ("dv", "Dolby Vision (any)"),
+             ("dv5", "DV profile 5"), ("dv7", "DV profile 7"), ("dv7fel", "DV 7 FEL"), ("dv7mel", "DV 7 MEL"), ("dv8", "DV profile 8")],
+            v => _filter with { Range = v })
+    </div>
+</div>
+<div class="row g-2 mb-3 sv-filter-row">
+    <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
+        @Select("Any audio", _filter.Audio,
+            new[] { ("lossless", "Lossless (any)"), ("atmos", "Atmos (any)") }
+                .Concat(summaries.SelectMany(s => s.Audio).Select(a => a.Codec).Distinct().Order().Select(c => (c, c))),
+            v => _filter with { Audio = v })
+        @Select("Any audio language", _filter.AudioLanguage, Languages(summaries.SelectMany(s => s.Audio).Select(a => a.Language)), v => _filter with { AudioLanguage = v })
+        <div class="input-group input-group-sm" style="width: auto;">
+            <select class="form-select form-select-sm" style="flex: 0 0 auto; width: auto;" value="@(_filter.SubtitlesMissing ? "missing" : "has")"
+                    @onchange='e => Set(_filter with { SubtitlesMissing = e.Value?.ToString() == "missing" })'>
+                <option value="has">With subtitles</option>
+                <option value="missing">Without subtitles</option>
+            </select>
+            @Select("in any language", _filter.SubtitleLanguage, Languages(summaries.SelectMany(s => s.Subtitles).Select(s => s.Language)), v => _filter with { SubtitleLanguage = v })
+        </div>
+        @Select("Any source", _filter.Source,
+            Enum.GetValues<SourceKind>().Where(k => k != SourceKind.Unknown).Select(k => (k.Word(), k.Word())).Append(("Unknown", "Unknown")),
+            v => _filter with { Source = v })
+        @Select("Read or not", _filter.State, [("pending", "Not read yet"), ("error", "Could not be read")], v => _filter with { State = v })
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="mismatch" checked="@_filter.MismatchOnly"
+                   @onchange="e => Set(_filter with { MismatchOnly = e.Value is true })"/>
+            <label class="form-check-label small" for="mismatch">Source to check</label>
+        </div>
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="extras" checked="@_filter.IncludeExtras"
+                   @onchange="e => Set(_filter with { IncludeExtras = e.Value is true })"/>
+            <label class="form-check-label small" for="extras">Extras</label>
+        </div>
+        @if (_filter != new FileFilter())
+        {
+            <button class="btn btn-sm btn-link" @onclick="() => Set(new FileFilter())">Clear filters</button>
+        }
+    </div>
+</div>
+
+@{
+    var files = Sorted(_filter.Apply(all)).ToList();
+}
+
+<p class="small text-muted mb-2">
+    @files.Count.ToString("N0") @(files.Count == 1 ? "file" : "files"), @Format.Size(files.Sum(f => f.SizeBytes))
+    @if (files.Count(f => f.Summary == null && f.Error == null) is var pending and > 0)
+    {
+        <span>(@pending.ToString("N0") not read yet: filters on tracks skip them)</span>
+    }
+</p>
+
+@if (files.Count > 0)
+{
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover table-sm mb-0 align-middle sv-card-table">
+                <thead>
+                <tr>
+                    <th class="ps-3">@SortHeader("File", "name")</th>
+                    <th>@SortHeader("Video", "resolution")</th>
+                    <th class="text-end">@SortHeader("Bit rate", "bitrate")</th>
+                    <th>Audio</th>
+                    <th>Subtitles</th>
+                    <th>@SortHeader("Source", "source")</th>
+                    <th class="text-end">@SortHeader("Size", "size")</th>
+                    <th class="pe-3">@SortHeader("Changed", "added")</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var file in files.Take(_shownCount))
+                {
+                    <tr class="sv-clickable-row" @onclick="() => Navigation.NavigateTo(FileLink(file))">
+                        <td class="ps-3">
+                            <a href="@FileLink(file)" class="sv-file-name text-decoration-none" @onclick:stopPropagation="true">@file.FileName</a>
+                            <div class="small text-muted">
+                                @file.Place.TitleWithYear
+                                @if (file.Place.Category != null)
+                                {
+                                    <span> · @file.Place.Category</span>
+                                }
+                                @if (file.Place.IsExtra)
+                                {
+                                    <span class="badge sv-badge-muted ms-1">extra</span>
+                                }
+                            </div>
+                            @if (file.Error != null)
+                            {
+                                <div class="small text-danger">@file.Error</div>
+                            }
+                        </td>
+                        <td class="sv-cell-inline"><SpecBadges Summary="file.Summary"/></td>
+                        <td class="text-end text-nowrap small sv-cell-inline">@(file.Summary?.VideoBitRate is { } rate ? Format.BitRate(rate) : "")</td>
+                        <td class="sv-cell-inline small">@TitleDetails.AudioText(file.Summary)</td>
+                        <td class="sv-cell-inline small">@TitleDetails.SubtitleText(file.Summary)</td>
+                        <td class="sv-cell-inline"><SourceBadge File="file"/></td>
+                        <td class="text-end text-nowrap sv-cell-inline">@Format.Size(file.SizeBytes)</td>
+                        <td class="text-nowrap small pe-3 sv-cell-end" title="@Format.LocalDate(file.ModifiedUtc)">@Format.TimeAgo(file.ModifiedUtc)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (files.Count > _shownCount)
+    {
+        <div class="text-center mt-3">
+            <button class="btn btn-sm btn-outline-secondary" @onclick="() => _shownCount += PageSize">
+                Show more (@((files.Count - _shownCount).ToString("N0")) left)
+            </button>
+        </div>
+    }
+}
+else if (!Index.IsLoading)
+{
+    <p class="text-muted">Nothing matches the filters.</p>
+}
+
+@code {
+    private const int PageSize = 200;
+    private int _shownCount = PageSize;
+    private FileFilter _filter = new();
+    private string _sort = "name";
+    private bool _descending;
+    private string? _ownUri;
+
+    [SupplyParameterFromQuery(Name = "q")] public string? QSearch { get; set; }
+    [SupplyParameterFromQuery(Name = "library")] public string? QLibrary { get; set; }
+    [SupplyParameterFromQuery(Name = "category")] public string? QCategory { get; set; }
+    [SupplyParameterFromQuery(Name = "res")] public string? QResolution { get; set; }
+    [SupplyParameterFromQuery(Name = "codec")] public string? QCodec { get; set; }
+    [SupplyParameterFromQuery(Name = "range")] public string? QRange { get; set; }
+    [SupplyParameterFromQuery(Name = "audio")] public string? QAudio { get; set; }
+    [SupplyParameterFromQuery(Name = "alang")] public string? QAudioLanguage { get; set; }
+    [SupplyParameterFromQuery(Name = "slang")] public string? QSubtitleLanguage { get; set; }
+    [SupplyParameterFromQuery(Name = "nosubs")] public bool QSubtitlesMissing { get; set; }
+    [SupplyParameterFromQuery(Name = "source")] public string? QSource { get; set; }
+    [SupplyParameterFromQuery(Name = "mismatch")] public bool QMismatch { get; set; }
+    [SupplyParameterFromQuery(Name = "extras")] public bool QExtras { get; set; }
+    [SupplyParameterFromQuery(Name = "state")] public string? QState { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? QSort { get; set; }
+    [SupplyParameterFromQuery(Name = "desc")] public bool QDescending { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // Only take the address bar's values when someone else changed it (a link, the back button).
+        if (Navigation.Uri == _ownUri)
+        {
+            return;
+        }
+
+        _filter = new FileFilter
+        {
+            Search = QSearch, Library = QLibrary, Category = QCategory, Resolution = QResolution, Codec = QCodec,
+            Range = QRange, Audio = QAudio, AudioLanguage = QAudioLanguage, SubtitleLanguage = QSubtitleLanguage,
+            SubtitlesMissing = QSubtitlesMissing, Source = QSource, MismatchOnly = QMismatch, IncludeExtras = QExtras, State = QState
+        };
+        _sort = QSort ?? "name";
+        _descending = QDescending;
+    }
+
+    private void Set(FileFilter filter)
+    {
+        _filter = filter with { Search = string.IsNullOrWhiteSpace(filter.Search) ? null : filter.Search };
+        _shownCount = PageSize;
+        SyncAddress();
+    }
+
+    private void SyncAddress()
+    {
+        _ownUri = Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["q"] = _filter.Search, ["library"] = _filter.Library, ["category"] = _filter.Category,
+            ["res"] = _filter.Resolution, ["codec"] = _filter.Codec, ["range"] = _filter.Range, ["audio"] = _filter.Audio,
+            ["alang"] = _filter.AudioLanguage, ["slang"] = _filter.SubtitleLanguage,
+            ["nosubs"] = _filter.SubtitlesMissing ? true : null, ["source"] = _filter.Source,
+            ["mismatch"] = _filter.MismatchOnly ? true : null, ["extras"] = _filter.IncludeExtras ? true : null,
+            ["state"] = _filter.State, ["sort"] = _sort == "name" ? null : _sort, ["desc"] = _descending ? true : null
+        });
+        Navigation.NavigateTo(_ownUri, replace: true);
+    }
+
+    private static string FileLink(IndexedFile file) => $"file/{file.Id}";
+
+    private static IEnumerable<(string Value, string Label)> Languages(IEnumerable<string> codes)
+    {
+        return codes.Select(Media.Languages.Short).Where(c => c != "und").Distinct().Order()
+            .Select(c => (c, $"{Media.Languages.Name(c)} ({c})"));
+    }
+
+    private IEnumerable<IndexedFile> Sorted(IEnumerable<IndexedFile> files)
+    {
+        IOrderedEnumerable<IndexedFile> sorted = _sort switch
+        {
+            "resolution" => files.OrderBy(f => Format.ResolutionRank(f.Summary?.Resolution)).ThenBy(f => f.Summary?.HasDolbyVision ?? false),
+            "bitrate" => files.OrderBy(f => f.Summary?.VideoBitRate ?? 0),
+            "source" => files.OrderBy(f => f.Summary?.Source ?? SourceKind.Unknown).ThenBy(f => f.SourceMismatch),
+            "size" => files.OrderBy(f => f.SizeBytes),
+            "added" => files.OrderBy(f => f.ModifiedUtc),
+            _ => files.OrderBy(f => f.FileName, StringComparer.OrdinalIgnoreCase)
+        };
+
+        return _descending ? sorted.Reverse() : sorted;
+    }
+
+    private RenderFragment SortHeader(string label, string column) =>
+        @<button class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold text-body text-nowrap" @onclick="() => SortBy(column)">
+            @label
+            @if (_sort == column)
+            {
+                <i class="bi @(_descending ? "bi-caret-down-fill" : "bi-caret-up-fill") ms-1"></i>
+            }
+        </button>;
+
+    private void SortBy(string column)
+    {
+        if (_sort == column)
+        {
+            _descending = !_descending;
+        }
+        else
+        {
+            _sort = column;
+            _descending = column is "resolution" or "bitrate" or "size" or "added";
+        }
+
+        SyncAddress();
+    }
+
+    private RenderFragment Select(string anyLabel, string? value, IEnumerable<(string Value, string Label)> options, Func<string?, FileFilter> change) =>
+        @<select class="form-select form-select-sm" style="width: auto;" value="@(value ?? "")"
+                 @onchange="e => Set(change(string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value!.ToString()))">
+            <option value="">@anyLabel</option>
+            @foreach (var (optionValue, label) in options)
+            {
+                <option value="@optionValue">@label</option>
+            }
+        </select>;
+}

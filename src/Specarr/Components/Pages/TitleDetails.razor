@@ -1,0 +1,161 @@
+@page "/title/{Id}"
+@inherits IndexComponentBase
+
+<PageTitle>@(_title?.NameWithYear ?? "Title") · Specarr</PageTitle>
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="">Library</a></li>
+        @if (_title != null)
+        {
+            <li class="breadcrumb-item"><a href="?library=@Uri.EscapeDataString(_title.Library.Name)">@_title.Library.Name</a></li>
+            @if (_title.Category != null)
+            {
+                <li class="breadcrumb-item">
+                    <a href="?library=@Uri.EscapeDataString(_title.Library.Name)&category=@Uri.EscapeDataString(_title.Category)">@_title.Category</a>
+                </li>
+            }
+        }
+        <li class="breadcrumb-item active" aria-current="page">@(_title?.NameWithYear ?? "Title")</li>
+    </ol>
+</nav>
+
+@if (_title == null)
+{
+    @if (Index.IsLoading)
+    {
+        <div class="text-center py-5"><span class="spinner-border" role="status"></span></div>
+    }
+    else
+    {
+        <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>This title is not in the library any more. <a href="">Back to the library</a>.</div>
+    }
+
+    return;
+}
+
+<div class="border-bottom pb-2 mb-3 d-flex flex-wrap align-items-end gap-2">
+    <h2 class="mb-0 fs-3">@_title.Name
+        @if (_title.Year is { } year)
+        {
+            <span class="text-muted fw-normal">(@year)</span>
+        }
+    </h2>
+    <span class="ms-md-auto small text-muted">@Format.Size(_title.SizeBytes) in @_title.Files.Count @(_title.Files.Count == 1 ? "file" : "files")</span>
+</div>
+@if (_title.Folder != null)
+{
+    <p class="sv-path small text-muted">@_title.Folder</p>
+}
+
+@{
+    var main = _title.MainFiles.ToList();
+    var extras = _title.Files.Where(f => f.Place.IsExtra).ToList();
+}
+
+@if (_title.Library.Kind == LibraryKind.Series)
+{
+    foreach (var season in main.GroupBy(f => f.Place.Season).OrderBy(g => g.Key ?? int.MaxValue))
+    {
+        <h3 class="fs-6 mt-3 mb-2">
+            @(season.Key switch { null => "Other files", 0 => "Specials", var n => $"Season {n}" })
+            <span class="text-muted fw-normal small ms-1">@season.Count() @(season.Count() == 1 ? "file" : "files"), @Format.Size(season.Sum(f => f.SizeBytes))</span>
+        </h3>
+        @FileTable(season.OrderBy(f => f.Place.Episode ?? int.MaxValue).ThenBy(f => f.FileName).ToList())
+    }
+}
+else
+{
+    @FileTable(main)
+}
+
+@if (extras.Count > 0)
+{
+    <button class="btn btn-sm btn-link px-0 mt-3" @onclick="() => _showExtras = !_showExtras">
+        <i class="bi @(_showExtras ? "bi-chevron-up" : "bi-chevron-down") me-1"></i>@extras.Count @(extras.Count == 1 ? "extra" : "extras")
+    </button>
+    @if (_showExtras)
+    {
+        @FileTable(extras)
+    }
+}
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+
+    private TitleEntry? _title;
+    private bool _showExtras;
+
+    protected override void OnParametersSet()
+    {
+        _title = Index.FindTitle(Id);
+    }
+
+    protected override void OnIndexUpdated()
+    {
+        _title = Index.FindTitle(Id);
+    }
+
+    private RenderFragment FileTable(IReadOnlyList<IndexedFile> files) =>
+        @<div class="card mb-2">
+            <div class="card-body p-0">
+                <table class="table table-hover table-sm mb-0 align-middle sv-card-table">
+                    <thead>
+                    <tr>
+                        <th class="ps-3">File</th>
+                        <th>Video</th>
+                        <th>Audio</th>
+                        <th>Subtitles</th>
+                        <th>Source</th>
+                        <th class="text-end pe-3">Size</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var file in files)
+                    {
+                        <tr>
+                            <td class="ps-3">
+                                @if (file.Place.EpisodeLabel is { } episode)
+                                {
+                                    <span class="badge sv-badge-muted me-1">@episode</span>
+                                }
+                                <a href="file/@file.Id" class="sv-file-name text-decoration-none">@file.FileName</a>
+                                @if (file.Error != null)
+                                {
+                                    <div class="small text-danger">@file.Error</div>
+                                }
+                            </td>
+                            <td class="sv-cell-inline"><SpecBadges Summary="file.Summary"/></td>
+                            <td class="sv-cell-inline small">@AudioText(file.Summary)</td>
+                            <td class="sv-cell-inline small">@SubtitleText(file.Summary)</td>
+                            <td class="sv-cell-inline"><SourceBadge File="file"/></td>
+                            <td class="text-end text-nowrap pe-3 sv-cell-end">@Format.Size(file.SizeBytes)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>;
+
+    internal static string AudioText(FileSummary? summary)
+    {
+        if (summary == null)
+        {
+            return "";
+        }
+
+        return string.Join(", ", summary.Audio.Where(a => !a.IsCommentary)
+            .GroupBy(a => a.Language)
+            .Select(g => $"{Languages.Short(g.Key)} {g.First().Label}"));
+    }
+
+    internal static string SubtitleText(FileSummary? summary)
+    {
+        if (summary == null || summary.Subtitles.Count == 0)
+        {
+            return summary == null ? "" : "None";
+        }
+
+        return string.Join(", ", summary.Subtitles.Select(s => s.Language).Distinct().Select(Languages.Short));
+    }
+}

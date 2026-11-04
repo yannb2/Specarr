@@ -61,8 +61,12 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY global.json ./
 COPY src/Specarr/Specarr.csproj src/Specarr/
+# arrkit is a git submodule: CI checks it out (submodules: true); locally run
+# "git submodule update --init" before building.
+COPY arrkit/src/Arrkit/Arrkit.csproj arrkit/src/Arrkit/
 RUN dotnet restore src/Specarr/Specarr.csproj
 COPY src/ src/
+COPY arrkit/src/ arrkit/src/
 RUN dotnet publish src/Specarr/Specarr.csproj -c Release -o /app --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0

@@ -1,0 +1,88 @@
+@inherits IndexComponentBase
+
+<p class="text-body-secondary small">
+    What Specarr runs with. These values come from the environment variables (<code>Specarr__…</code>)
+    and need a restart to change.
+</p>
+
+@{
+    var files = Snapshot.Files;
+}
+
+<div class="row g-3">
+    <div class="col-12">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-collection me-2"></i>Libraries</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                    <tr>
+                        <th class="ps-3">Name</th>
+                        <th>Path</th>
+                        <th>Kind</th>
+                        <th class="text-end">Titles</th>
+                        <th class="text-end pe-3">Files</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var library in Index.Options.Libraries)
+                    {
+                        <tr>
+                            <td class="ps-3">@library.Name</td>
+                            <td class="sv-path">
+                                @library.Path
+                                @if (!Directory.Exists(library.Path))
+                                {
+                                    <i class="bi bi-x-circle text-danger ms-1" title="Not mounted"></i>
+                                }
+                            </td>
+                            <td>@library.Kind@(library.Categories ? ", categories" : "")</td>
+                            <td class="text-end">@Snapshot.Titles.Count(t => t.Library == library)</td>
+                            <td class="text-end pe-3">@files.Count(f => f.Library == library).ToString("N0")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+                <p class="small text-muted m-3">
+                    Folders starting with a dot (.recycle) and <code>@string.Join(", ", Index.Options.IgnoredFolderNames)</code> are skipped.
+                    Files in <code>@string.Join(", ", Index.Options.ExtrasFolderNames)</code> folders count as extras.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card h-100">
+            <div class="card-header"><i class="bi bi-file-earmark-play me-2"></i>Reading files</div>
+            <table class="table table-sm mb-0 small">
+                <tbody>
+                @foreach (var (label, value, variable) in Reading(Index.Options))
+                {
+                    <tr>
+                        <td class="ps-3 text-body-secondary text-nowrap">@label</td>
+                        <td>@value</td>
+                        <td class="pe-3 text-end"><code>@variable</code></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private static IEnumerable<(string Label, string Value, string Variable)> Reading(SpecarrOptions options) =>
+    [
+        ("Look for new and changed files", options.RescanHours > 0 ? $"every {options.RescanHours:0.#} h" : "only at start and on request", "Specarr__RescanHours"),
+        ("Files read at the same time", options.ProbeConcurrency.ToString(), "Specarr__ProbeConcurrency"),
+        ("HDR10+ check on the first frames", OnOff(options.DetectHdr10Plus), "Specarr__DetectHdr10Plus"),
+        ("Dolby Vision details (dovi_tool)", OnOff(options.ReadDolbyVision), "Specarr__ReadDolbyVision"),
+        ("mediainfo (encoder clues for the source)", OnOff(options.ReadMediaInfo), "Specarr__ReadMediaInfo"),
+        ("Measure audio bit rates the file does not state", OnOff(options.EstimateAudioBitRate), "Specarr__EstimateAudioBitRate"),
+        ("Video files", string.Join(" ", options.VideoExtensions), "Specarr__VideoExtensions__0"),
+        ("Cache", options.DatabasePath, "Specarr__DatabasePath"),
+        ("Daily look for newer tools", OnOff(options.Updates.Enabled), "Specarr__Updates__Enabled")
+    ];
+
+    private static string OnOff(bool on) => on ? "on" : "off";
+}

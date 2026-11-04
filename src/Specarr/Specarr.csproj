@@ -4,12 +4,17 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <Version>0.1.0</Version>
+        <Version>0.2.0</Version>
         <InvariantGlobalization>false</InvariantGlobalization>
         <!-- The SDK only adds blazor.web.js when it sees .razor files at restore time.
              The Dockerfile restores from the .csproj alone, so say it here. -->
         <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
     </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Shared code (the Logs page's MemoryLog), a git submodule. -->
+        <ProjectReference Include="..\..\arrkit\src\Arrkit\Arrkit.csproj" />
+    </ItemGroup>
 
     <ItemGroup>
         <InternalsVisibleTo Include="Specarr.Tests" />

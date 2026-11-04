@@ -14,6 +14,8 @@ Specarr is read-only. It is the sister app of
 
 ![File page with the source guess](docs/file.png)
 
+![Settings](docs/settings.png)
+
 ## What it does
 
 - **Library.** Every movie and show, by library and category
@@ -39,8 +41,15 @@ Specarr is read-only. It is the sister app of
 - **Compare.** The file next to another file of the same title (another cut,
   or the same episode in another quality), with every difference highlighted.
 - **MediaInfo.** The raw `mediainfo` output or ffprobe JSON.
-- **Status.** Libraries, the background scan (pause, look for new files now,
-  retry failures, read everything again), the cache and the tool versions.
+- **Settings.** Two tabs, as in Ripparr and Muxarr: Libraries (paths, skipped
+  and extras folders, what is read from each file) and Status (the background
+  scan with pause, look for new files now, retry failures, read everything
+  again; the cache and the tool versions). The old `/status` link opens the
+  Status tab. Values come from the environment variables.
+- **Logs.** The app's last 2000 log lines (arrkit's `MemoryLog`, shared with Ripparr and Salvarr), with a level filter, search and
+  exceptions on a click.
+- **Light or dark** from the sidebar button (moon and Dark, sun and Light),
+  kept in the browser.
 
 ## Audio bit rates
 
@@ -161,6 +170,7 @@ is out; the build on that branch is the test. It needs Settings > Actions > Gene
 ## Building
 
 ```sh
+git submodule update --init   # arrkit, the shared code
 dotnet test
 dotnet run --project src/Specarr        # http://localhost:8185, cache in ./specarr.db
 docker build -t specarr .

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Arrkit.Hosting;
 using Arrkit.Logging;
 using Specarr.Components;
 using Specarr.Library;
@@ -11,6 +12,9 @@ CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ASP.NET's data-protection keys (antiforgery tokens) in /config/keys, so they survive an update.
+DataProtectionKeys.PersistKeysIn(builder, Path.GetDirectoryName(builder.Configuration["Specarr:DatabasePath"] ?? "/config/specarr.db") ?? "/config", "Specarr");
 
 // The Logs page: the app's recent log lines, in memory.
 var memoryLog = new MemoryLog();

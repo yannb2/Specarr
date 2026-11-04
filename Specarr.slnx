@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/arrkit/">
+    <Project Path="arrkit/src/Arrkit/Arrkit.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Specarr/Specarr.csproj" />
   </Folder>

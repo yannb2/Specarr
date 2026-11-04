@@ -46,7 +46,7 @@ Specarr is read-only. It is the sister app of
   scan with pause, look for new files now, retry failures, read everything
   again; the cache and the tool versions). The old `/status` link opens the
   Status tab. Values come from the environment variables.
-- **Logs.** The app's last 2000 log lines, with a level filter, search and
+- **Logs.** The app's last 2000 log lines (arrkit's `MemoryLog`, shared with Ripparr and Salvarr), with a level filter, search and
   exceptions on a click.
 - **Light or dark** from the sidebar button (moon and Dark, sun and Light),
   kept in the browser.
@@ -170,6 +170,7 @@ is out; the build on that branch is the test. It needs Settings > Actions > Gene
 ## Building
 
 ```sh
+git submodule update --init   # arrkit, the shared code
 dotnet test
 dotnet run --project src/Specarr        # http://localhost:8185, cache in ./specarr.db
 docker build -t specarr .

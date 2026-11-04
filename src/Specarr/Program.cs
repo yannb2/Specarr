@@ -1,6 +1,7 @@
 using System.Globalization;
 using Specarr.Components;
 using Specarr.Library;
+using Specarr.Logging;
 using Specarr.Media;
 using Specarr.Options;
 using Specarr.Tools;
@@ -10,6 +11,11 @@ CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// The Logs page: the app's recent log lines, in memory.
+var memoryLog = new MemoryLog();
+builder.Logging.AddProvider(new MemoryLoggerProvider(memoryLog));
+builder.Services.AddSingleton(memoryLog);
 
 builder.Services.AddOptions<SpecarrOptions>()
     .Bind(builder.Configuration.GetSection(SpecarrOptions.Section))

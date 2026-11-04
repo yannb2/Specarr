@@ -841,3 +841,15 @@ h2:focus {
 .sv-card-table > thead > tr > th {
     font-size: 0.875rem;
 }
+
+/* ---- Logs page ---- */
+
+.sv-log-message {
+    word-break: break-word;
+}
+
+.sv-log-exception {
+    white-space: pre-wrap;
+    max-height: 24rem;
+    overflow: auto;
+}

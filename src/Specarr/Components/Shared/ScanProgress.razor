@@ -5,7 +5,7 @@
     var pending = files.Count(f => !f.IsProbed);
     var refresh = files.Count(f => f.NeedsRefresh);
 }
-<a href="status" class="text-decoration-none small text-muted d-flex align-items-center gap-2" title="@(Index.CurrentFile ?? "")">
+<a href="settings/status" class="text-decoration-none small text-muted d-flex align-items-center gap-2" title="@(Index.CurrentFile ?? "")">
     @if (Index.IsWalking || Index.IsLoading)
     {
         <span class="spinner-border spinner-border-sm" role="status"></span>

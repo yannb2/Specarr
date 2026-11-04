@@ -1,0 +1,50 @@
+@page "/settings"
+@page "/settings/{Tab}"
+@page "/status"
+@inject NavigationManager Navigation
+
+<PageTitle>Settings · Specarr</PageTitle>
+
+<h2 class="border-bottom pb-2 mb-4"><i class="bi bi-gear me-2"></i>Settings</h2>
+
+<ul class="nav nav-tabs mb-3">
+    @foreach (var (key, label, icon) in Tabs)
+    {
+        <li class="nav-item">
+            <a class="nav-link @(_tab == key ? "active" : "")" href="settings/@key">
+                <i class="bi @icon me-1"></i>@label
+            </a>
+        </li>
+    }
+</ul>
+
+@switch (_tab)
+{
+    case "status":
+        <StatusTab/>
+        break;
+    default:
+        <LibrariesTab/>
+        break;
+}
+
+@code {
+    [Parameter] public string? Tab { get; set; }
+
+    private string _tab = "libraries";
+
+    /// <summary>The tabs, in order. A new kind of setting gets its own tab here.</summary>
+    public static readonly (string Key, string Label, string Icon)[] Tabs =
+    [
+        ("libraries", "Libraries", "bi-collection"),
+        ("status", "Status", "bi-info-circle")
+    ];
+
+    protected override void OnParametersSet()
+    {
+        // The old /status page opens its tab.
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
+        var wanted = Tab ?? (path == "status" ? "status" : "libraries");
+        _tab = Tabs.Any(t => t.Key == wanted) ? wanted : "libraries";
+    }
+}

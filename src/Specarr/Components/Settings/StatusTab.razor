@@ -1,13 +1,10 @@
-@page "/status"
 @inject ToolStatusService Tools
 @inherits IndexComponentBase
 @inject IndexStore Store
 @inject IJSRuntime JS
 
-<PageTitle>Status · Specarr</PageTitle>
-
-<div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-4 sv-page-header">
-    <h2 class="mb-0"><i class="bi bi-info-circle me-2"></i>Status</h2>
+<div class="d-flex align-items-center gap-2 mb-3">
+    <p class="text-body-secondary small mb-0 me-auto">The background scan, the cache and the tools, right now.</p>
     <ScanProgress/>
 </div>
 
@@ -18,47 +15,6 @@
 }
 
 <div class="row g-3">
-    <div class="col-12 col-xl-6">
-        <div class="card h-100">
-            <div class="card-header"><i class="bi bi-collection me-2"></i>Libraries</div>
-            <div class="card-body p-0">
-                <table class="table table-sm mb-0">
-                    <thead>
-                    <tr>
-                        <th class="ps-3">Name</th>
-                        <th>Path</th>
-                        <th>Kind</th>
-                        <th class="text-end">Titles</th>
-                        <th class="text-end pe-3">Files</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var library in Index.Options.Libraries)
-                    {
-                        <tr>
-                            <td class="ps-3">@library.Name</td>
-                            <td class="sv-path">
-                                @library.Path
-                                @if (!Directory.Exists(library.Path))
-                                {
-                                    <i class="bi bi-x-circle text-danger ms-1" title="Not mounted"></i>
-                                }
-                            </td>
-                            <td>@library.Kind@(library.Categories ? ", categories" : "")</td>
-                            <td class="text-end">@Snapshot.Titles.Count(t => t.Library == library)</td>
-                            <td class="text-end pe-3">@files.Count(f => f.Library == library).ToString("N0")</td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
-                <p class="small text-muted m-3">
-                    Folders starting with a dot (.recycle) and <code>@string.Join(", ", Index.Options.IgnoredFolderNames)</code> are skipped.
-                    Files in <code>@string.Join(", ", Index.Options.ExtrasFolderNames)</code> folders count as extras.
-                </p>
-            </div>
-        </div>
-    </div>
-
     <div class="col-12 col-xl-6">
         <div class="card h-100">
             <div class="card-header"><i class="bi bi-arrow-repeat me-2"></i>Background scan</div>
@@ -160,13 +116,6 @@
                     }
                     </tbody>
                 </table>
-                <p class="small text-muted m-3">
-                    HDR10+ check @(Index.Options.DetectHdr10Plus ? "on" : "off"),
-                    Dolby Vision details @(Index.Options.ReadDolbyVision ? "on" : "off"),
-                    mediainfo @(Index.Options.ReadMediaInfo ? "on" : "off"),
-                    audio bit rate measuring @(Index.Options.EstimateAudioBitRate ? "on" : "off"),
-                    @Index.Options.ProbeConcurrency @(Index.Options.ProbeConcurrency == 1 ? "file" : "files") at a time.
-                </p>
             </div>
         </div>
     </div>

@@ -1,0 +1,48 @@
+@page "/open"
+@inherits IndexComponentBase
+@using Microsoft.Extensions.Options
+@inject IOptions<SpecarrOptions> Options
+@inject NavigationManager Navigation
+
+@* The target of the other apps' "Open in Specarr" links (arrkit's SpecarrLink): /open?path=/full/path. *@
+<PageTitle>Open · Specarr</PageTitle>
+
+@if (_result?.Problem is { } problem)
+{
+    <div class="alert alert-warning mt-3">
+        <i class="bi bi-exclamation-triangle me-2"></i><span class="text-break">@problem</span>
+    </div>
+    <a href="">Back to the library</a>
+}
+else
+{
+    <div class="text-center py-5">
+        <span class="spinner-border" role="status"></span>
+        <div class="small text-muted mt-2">@(_result?.WaitForIndex == true ? "Waiting for the library list…" : "Opening…")</div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "path")] public string? PathParam { get; set; }
+
+    private OpenResult? _result;
+
+    protected override void OnParametersSet() => Go();
+
+    protected override void OnIndexUpdated()
+    {
+        if (_result?.WaitForIndex == true)
+        {
+            Go();
+        }
+    }
+
+    private void Go()
+    {
+        _result = OpenTarget.Resolve(Snapshot, Index.IsLoading, Options.Value, PathParam);
+        if (_result.Link is { } link)
+        {
+            Navigation.NavigateTo(link, replace: true);
+        }
+    }
+}

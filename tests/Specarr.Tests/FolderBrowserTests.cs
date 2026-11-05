@@ -74,7 +74,9 @@ public sealed class FolderBrowserTests
     public void DownloadsIsBrowsedByDefault()
     {
         var options = new SpecarrOptions().WithDefaults();
-        var downloads = options.Browse.Single();
+        var downloads = options.Browse[0];
+        Assert.AreEqual("/mnt/pc", options.Browse[1].Path);
+        Assert.AreEqual("external", options.Browse[1].Slug);
         Assert.AreEqual("/downloads", downloads.Path);
         Assert.AreEqual("downloads", downloads.Slug);
         Assert.AreSame(downloads, FolderBrowser.Find(options, "Downloads"));

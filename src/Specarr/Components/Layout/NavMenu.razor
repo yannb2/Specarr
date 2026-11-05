@@ -29,7 +29,7 @@
             {
                 <li class="nav-item">
                     <NavLink class="nav-link" href="@($"browse/{folder.Slug}")" Match="NavLinkMatch.Prefix" @onclick="Close" title="@folder.Path">
-                        <i class="bi bi-download"></i>
+                        <i class="bi @folder.Icon"></i>
                         <span>@folder.Name</span>
                     </NavLink>
                 </li>

@@ -1,4 +1,5 @@
 @page "/browse/{Root}"
+@using Arrkit.Files
 @using Arrkit.Tables
 @using Microsoft.Extensions.Options
 @implements IDisposable
@@ -237,7 +238,10 @@ else
             return;
         }
 
-        _listing = FolderBrowser.List(_root.Path, PathParam, Options.Value.VideoExtensions);
+        // External: list only the disks that are plugged in; the refresh button lists them again.
+        var points = _root.Disks ? Mounts.Points() : null;
+        _listing = FolderBrowser.List(_root.Path, PathParam, Options.Value.VideoExtensions,
+            _root.Disks ? folder => Mounts.HasDisk(folder, points) : null);
         _read.Clear();
 
         // What the cache already knows, for the Tracks column. Nothing is read here.

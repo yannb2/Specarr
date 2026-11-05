@@ -88,7 +88,7 @@ public class SpecarrOptions
             Browse =
             [
                 new BrowseFolderOptions { Name = "Downloads", Path = "/downloads", Icon = "bi-download" },
-                new BrowseFolderOptions { Name = "External", Path = "/mnt/pc", Icon = "bi-hdd-network" }
+                new BrowseFolderOptions { Name = "External", Path = "/mnt/pc", Icon = "bi-hdd-network", Disks = true }
             ];
         }
 
@@ -152,6 +152,12 @@ public class BrowseFolderOptions
 
     /// <summary>The Bootstrap icon in the sidebar and the page title, e.g. bi-download.</summary>
     public string Icon { get; set; } = "bi-folder2-open";
+
+    /// <summary>
+    /// Each folder right inside is a disk or share mount point (/mnt/pc/usb01...): list only the ones with a disk in
+    /// them, leaving out an unplugged disk's empty folder. On for External.
+    /// </summary>
+    public bool Disks { get; set; }
 
     /// <summary>The name in the address: "Downloads" is /browse/downloads.</summary>
     public string Slug => new string(Name.Trim().ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray()).Trim('-');

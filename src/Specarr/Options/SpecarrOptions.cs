@@ -11,6 +11,13 @@ public class SpecarrOptions
     /// <summary>The library roots to browse, such as /movies and /tv.</summary>
     public List<LibraryOptions> Libraries { get; set; } = [];
 
+    /// <summary>
+    /// Folders outside the library to browse file by file, such as /downloads:
+    /// <c>Specarr__Browse__0__Name=Downloads</c>, <c>Specarr__Browse__0__Path=/downloads</c>.
+    /// Never walked in the background; a file is only read when it is opened or "Read" is pressed.
+    /// </summary>
+    public List<BrowseFolderOptions> Browse { get; set; } = [];
+
     /// <summary>Extensions listed as video files. Anything else is ignored.</summary>
     public List<string> VideoExtensions { get; set; } = [];
 
@@ -76,6 +83,11 @@ public class SpecarrOptions
             ];
         }
 
+        if (Browse.Count == 0)
+        {
+            Browse = [new BrowseFolderOptions { Name = "Downloads", Path = "/downloads" }];
+        }
+
         if (VideoExtensions.Count == 0)
         {
             VideoExtensions = [..DefaultVideoExtensions];
@@ -124,6 +136,18 @@ public class LibraryOptions
     /// false when title folders sit right under the root.
     /// </summary>
     public bool Categories { get; set; } = true;
+}
+
+public class BrowseFolderOptions
+{
+    /// <summary>Shown in the sidebar, e.g. "Downloads".</summary>
+    public string Name { get; set; } = "";
+
+    /// <summary>Path inside the container, e.g. /downloads. Mount it read-only.</summary>
+    public string Path { get; set; } = "";
+
+    /// <summary>The name in the address: "Downloads" is /browse/downloads.</summary>
+    public string Slug => new string(Name.Trim().ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray()).Trim('-');
 }
 
 public enum LibraryKind

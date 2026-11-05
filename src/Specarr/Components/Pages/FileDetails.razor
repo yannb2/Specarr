@@ -1,6 +1,5 @@
 @page "/file/{Id}"
 @inherits IndexComponentBase
-@inject MediaProbe Probe
 
 <PageTitle>@(_file?.FileName ?? "File") · Specarr</PageTitle>
 
@@ -31,208 +30,19 @@
     return;
 }
 
-<div class="border-bottom pb-2 mb-3 d-flex flex-wrap align-items-center gap-2">
-    <h2 class="mb-0 sv-file-name fs-5 flex-grow-1">@_file.FileName</h2>
-    <button class="btn btn-sm btn-outline-secondary" disabled="@(_probe == null || _reading)" @onclick="ReadAgain"
-            title="Read the file again, e.g. after remuxing it in place">
-        <i class="bi bi-arrow-clockwise me-1"></i>Read again
-    </button>
-</div>
-
-<div class="row g-3 mb-3">
-    <div class="col-12 col-xl-6">
-        <div class="card h-100">
-            <div class="card-body">
-                <dl class="row mb-0 small">
-                    <dt class="col-sm-3">Path</dt>
-                    <dd class="col-sm-9 sv-path">@_file.Path</dd>
-                    <dt class="col-sm-3">Size</dt>
-                    <dd class="col-sm-9">@Format.Size(_file.SizeBytes)</dd>
-                    <dt class="col-sm-3">Changed</dt>
-                    <dd class="col-sm-9">@Format.TimeAgo(_file.ModifiedUtc) (@Format.LocalDate(_file.ModifiedUtc))</dd>
-                    @if (_file.Place.Category != null)
-                    {
-                        <dt class="col-sm-3">Category</dt>
-                        <dd class="col-sm-9">@_file.Place.Category</dd>
-                    }
-                    @if (_probe?.Details is { } d)
-                    {
-                        <dt class="col-sm-3">Video bit rate</dt>
-                        <dd class="col-sm-9">
-                            @(d.VideoBitRate is { } rate ? Format.BitRate(rate) : "Unknown")
-                            @if (d.VideoBitRateIsEstimate && d.VideoBitRate != null)
-                            {
-                                <span class="text-muted">(overall minus audio)</span>
-                            }
-                        </dd>
-                        <dt class="col-sm-3">Encoder</dt>
-                        <dd class="col-sm-9">
-                            @if (d.EncoderLibrary != null)
-                            {
-                                <span>@d.EncoderLibrary</span>
-                                @if (d.EncoderSettings != null)
-                                {
-                                    <button class="btn btn-link btn-sm p-0 ms-2 align-baseline" @onclick="() => _showSettings = !_showSettings">settings</button>
-                                    @if (_showSettings)
-                                    {
-                                        <div class="sv-path text-muted mt-1">@d.EncoderSettings</div>
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                <span class="sv-missing">None in the video</span>
-                            }
-                        </dd>
-                        <dt class="col-sm-3">Written by</dt>
-                        <dd class="col-sm-9">@(d.WritingApplication ?? "Unknown")</dd>
-                    }
-                </dl>
-            </div>
-        </div>
-    </div>
-    <div class="col-12 col-xl-6">
-        <SourceCard File="_file" Guess="_probe?.Details?.Source"/>
-    </div>
-</div>
-
-@if (_probe == null)
-{
-    <div class="text-center py-4">
-        <span class="spinner-border" role="status"></span>
-        <div class="small text-muted mt-2">Reading the file…</div>
-    </div>
-    return;
-}
-
-@if (_probe.Error != null)
-{
-    <div class="alert alert-danger">@_probe.Error</div>
-}
-
-<ul class="nav nav-tabs mb-3">
-    <li class="nav-item">
-        <button class="nav-link @(_tab == Tab.Details ? "active" : null)" @onclick="() => _tab = Tab.Details">
-            <i class="bi bi-list-ul me-1"></i>Details
-        </button>
-    </li>
-    @if (_others.Count > 0)
-    {
-        <li class="nav-item">
-            <button class="nav-link @(_tab == Tab.Compare ? "active" : null)" @onclick="OpenCompare">
-                <i class="bi bi-layout-split me-1"></i>Compare
-            </button>
-        </li>
-    }
-    <li class="nav-item">
-        <button class="nav-link @(_tab == Tab.Raw ? "active" : null)" @onclick="OpenRaw">
-            <i class="bi bi-terminal me-1"></i>MediaInfo
-        </button>
-    </li>
-</ul>
-
-@switch (_tab)
-{
-    case Tab.Details:
-        if (_probe.Details is { } details)
-        {
-            <MediaView Details="details"/>
-        }
-
-        break;
-
-    case Tab.Compare:
-        <div class="mb-3">
-            <select class="form-select form-select-sm" style="max-width: 48rem;" value="@_compareId" @onchange="CompareChanged">
-                @foreach (var other in _others)
-                {
-                    <option value="@other.Id">@(other.Place.EpisodeLabel is { } ep ? $"{ep}: " : "")@other.FileName</option>
-                }
-            </select>
-        </div>
-        if (_compare == null)
-        {
-            <div class="text-center py-4"><span class="spinner-border" role="status"></span></div>
-        }
-        else if (_compare.Error != null)
-        {
-            <div class="alert alert-danger">@_compare.Error</div>
-        }
-        else if (_probe.Details is { } left && _compare.Details is { } right)
-        {
-            <CompareView Left="left" Right="right" LeftLabel="This file" RightLabel="@Path.GetFileName(right.Path)"/>
-        }
-
-        break;
-
-    case Tab.Raw:
-        <div class="btn-group btn-group-sm mb-3">
-            <button class="btn @(_rawFormat == RawFormat.MediaInfo ? "btn-secondary" : "btn-outline-secondary")"
-                    @onclick="() => ShowRaw(RawFormat.MediaInfo)">mediainfo</button>
-            <button class="btn @(_rawFormat == RawFormat.FFprobe ? "btn-secondary" : "btn-outline-secondary")"
-                    @onclick="() => ShowRaw(RawFormat.FFprobe)">ffprobe JSON</button>
-        </div>
-        @if (_rawText == null)
-        {
-            <div class="text-center py-4"><span class="spinner-border" role="status"></span></div>
-        }
-        else
-        {
-            <pre class="sv-raw">@_rawText</pre>
-        }
-
-        break;
-}
+<FileDetailsView File="_file" Others="_others"/>
 
 @code {
     [Parameter] public string Id { get; set; } = "";
 
-    private enum Tab
-    {
-        Details,
-        Compare,
-        Raw
-    }
-
-    private enum RawFormat
-    {
-        MediaInfo,
-        FFprobe
-    }
-
     private IndexedFile? _file;
     private TitleEntry? _title;
     private List<IndexedFile> _others = [];
-    private ProbeResult? _probe;
-    private ProbeResult? _compare;
-    private string? _compareId;
-    private Tab _tab = Tab.Details;
-    private RawFormat _rawFormat = RawFormat.MediaInfo;
-    private string? _rawText;
-    private int _request;
-    private int _rawRequest;
-    private bool _reading;
-    private bool _showSettings;
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnParametersSet()
     {
-        var request = ++_request;
         _file = Index.FindFile(Id);
-        _probe = _compare = null;
-        _rawText = null;
-        _tab = Tab.Details;
         Relate();
-        if (_file == null)
-        {
-            return;
-        }
-
-        StateHasChanged();
-        var result = await Probe.ProbeAsync(_file.Path, force: _file.NeedsRefresh);
-        if (request == _request)
-        {
-            _probe = result;
-        }
     }
 
     protected override void OnIndexUpdated()
@@ -242,11 +52,6 @@
         {
             _file = file;
             Relate();
-            _ = InvokeAsync(async () =>
-            {
-                _probe = await Probe.ProbeAsync(file.Path, force: file.NeedsRefresh);
-                StateHasChanged();
-            });
         }
     }
 
@@ -262,89 +67,5 @@
                 .ThenBy(f => f.Place.Season ?? int.MaxValue).ThenBy(f => f.Place.Episode ?? int.MaxValue)
                 .ThenBy(f => f.FileName)
                 .ToList();
-        _compareId = _others.FirstOrDefault()?.Id;
-    }
-
-    private async Task ReadAgain()
-    {
-        if (_file == null)
-        {
-            return;
-        }
-
-        _reading = true;
-        _probe = null;
-        _rawText = null;
-        StateHasChanged();
-        try
-        {
-            _probe = await Probe.ProbeAsync(_file.Path, force: true);
-        }
-        finally
-        {
-            _reading = false;
-        }
-    }
-
-    private async Task OpenCompare()
-    {
-        _tab = Tab.Compare;
-        if (_compare == null && _compareId != null)
-        {
-            await LoadCompare(_compareId);
-        }
-    }
-
-    private async Task CompareChanged(ChangeEventArgs e)
-    {
-        if (e.Value?.ToString() is { } id)
-        {
-            await LoadCompare(id);
-        }
-    }
-
-    private async Task LoadCompare(string id)
-    {
-        _compareId = id;
-        _compare = null;
-        if (_others.FirstOrDefault(f => f.Id == id) is not { } other)
-        {
-            return;
-        }
-
-        StateHasChanged();
-        var result = await Probe.ProbeAsync(other.Path, force: other.NeedsRefresh);
-        if (_compareId == id)
-        {
-            _compare = result;
-        }
-    }
-
-    private async Task OpenRaw()
-    {
-        _tab = Tab.Raw;
-        await ShowRaw(_rawFormat);
-    }
-
-    private async Task ShowRaw(RawFormat format)
-    {
-        _rawFormat = format;
-        _rawText = null;
-        if (_file == null)
-        {
-            return;
-        }
-
-        var request = ++_rawRequest;
-        StateHasChanged();
-        var text = format == RawFormat.MediaInfo
-            ? await Probe.MediaInfoTextAsync(_file.Path)
-            : _probe?.RawJson ?? "ffprobe printed nothing.";
-
-        // A slower earlier request must not overwrite a newer one.
-        if (request == _rawRequest)
-        {
-            _rawText = text;
-        }
     }
 }

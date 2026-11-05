@@ -1,0 +1,373 @@
+@page "/browse/{Root}"
+@using Arrkit.Tables
+@using Microsoft.Extensions.Options
+@implements IDisposable
+@inject IOptions<SpecarrOptions> Options
+@inject IndexStore Store
+@inject MediaProbe Probe
+@inject NavigationManager Navigation
+
+<PageTitle>@(_root?.Name ?? "Browse") · Specarr</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 sv-page-header gap-2">
+    <h2 class="mb-0"><i class="bi bi-download me-2"></i>@(_root?.Name ?? "Browse")</h2>
+    @if (_listing is { Error: null })
+    {
+        <div class="d-flex flex-wrap gap-2 justify-content-end">
+            @if (_reading != null)
+            {
+                <button class="btn btn-sm btn-outline-secondary" @onclick="StopReading" title="Stop after the file being read">
+                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>Reading @_reading.Done of @_reading.Total · Stop
+                </button>
+            }
+            else if (Unread.Any())
+            {
+                <button class="btn btn-sm btn-outline-secondary" @onclick="ReadHere"
+                        title="Read the video and audio files of this folder (not its subfolders), one at a time, to fill the Tracks column">
+                    <i class="bi bi-eye me-1"></i>Read @Unread.Count() here
+                </button>
+            }
+            <button class="btn btn-sm btn-outline-secondary" @onclick="Load" title="List the folder again">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+    }
+</div>
+
+@if (_root == null)
+{
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>There is no folder called "@Root" to browse. See Settings.</div>
+    return;
+}
+
+@if (!Directory.Exists(_root.Path))
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i><span class="sv-path">@_root.Path</span> is not mounted in the container.
+        Add <code>- @(_root.Path):@(_root.Path):ro</code> to the specarr service's volumes.
+    </div>
+    return;
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0 small sv-path">
+        <li class="breadcrumb-item"><a href="@FolderLink("")">@_root.Path</a></li>
+        @{
+            var parts = (_listing?.RelativePath ?? "").Split('/', StringSplitOptions.RemoveEmptyEntries);
+        }
+        @for (var i = 0; i < parts.Length; i++)
+        {
+            var upTo = string.Join('/', parts.Take(i + 1));
+            if (i == parts.Length - 1)
+            {
+                <li class="breadcrumb-item active" aria-current="page">@parts[i]</li>
+            }
+            else
+            {
+                <li class="breadcrumb-item"><a href="@FolderLink(upTo)">@parts[i]</a></li>
+            }
+        }
+    </ol>
+</nav>
+
+@if (_listing == null)
+{
+    <div class="text-center py-5"><span class="spinner-border" role="status"></span></div>
+    return;
+}
+
+@if (_listing.Error != null)
+{
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>@_listing.Error <a href="@FolderLink("")" class="ms-1">Back to @_root.Path</a>.</div>
+    @if (_listing.Entries.Count == 0)
+    {
+        return;
+    }
+}
+
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <input class="form-control form-control-sm" style="max-width: 24rem;" type="search" placeholder="Filter this folder"
+           value="@_search" @oninput='e => _search = e.Value?.ToString() ?? ""'/>
+    <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="hidden" checked="@_showHidden" @onchange="e => SetHidden(e.Value is true)"/>
+        <label class="form-check-label small" for="hidden">Hidden (.recycle, .partial)</label>
+    </div>
+</div>
+
+@{
+    var shown = Sorted(Visible).ToList();
+    var folders = shown.Count(e => e.IsFolder);
+    var files = shown.Where(e => !e.IsFolder).ToList();
+}
+
+<p class="small text-muted mb-2">
+    @folders @(folders == 1 ? "folder" : "folders"), @files.Count @(files.Count == 1 ? "file" : "files") (@Format.Size(files.Sum(f => f.SizeBytes ?? 0)))
+    @if (_listing.RelativePath.Length > 0)
+    {
+        <span> · <a href="@FolderLink(ParentOf(_listing.RelativePath))"><i class="bi bi-arrow-up me-1"></i>Up</a></span>
+    }
+</p>
+
+@if (shown.Count == 0)
+{
+    <div class="text-muted small">@(_listing.Entries.Count == 0 ? "This folder is empty." : "Nothing matches the filter.")</div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-hover table-sm mb-0 align-middle sv-card-table">
+                <thead>
+                <tr>
+                    <SortHeader Column="name" Label="Name" Current="@_sort" Descending="_descending" OnSort="SortBy" Class="ps-3"/>
+                    <SortHeader Column="kind" Label="Kind" Current="@_sort" Descending="_descending" OnSort="SortBy"/>
+                    <SortHeader Column="tracks" Label="Tracks" Current="@_sort" Descending="_descending" OnSort="SortBy"/>
+                    <SortHeader Column="size" Label="Size" Current="@_sort" Descending="_descending" OnSort="SortBy" Class="text-end"/>
+                    <SortHeader Column="changed" Label="Changed" Current="@_sort" Descending="_descending" OnSort="SortBy" Class="pe-3"/>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var entry in shown)
+                {
+                    var link = Link(entry);
+                    _read.TryGetValue(entry.FullPath, out var read);
+                    <tr class="@(link != null ? "sv-clickable-row" : null) @(entry.IsHidden ? "text-body-secondary" : null)"
+                        @onclick="() => { if (link != null) Navigation.NavigateTo(link); }">
+                        <td class="ps-3">
+                            <i class="bi @Icon(entry.Kind) me-2 @(entry.IsFolder ? "text-warning" : "text-body-secondary")"></i>
+                            @if (link != null)
+                            {
+                                <a href="@link" class="sv-file-name text-decoration-none" @onclick:stopPropagation="true">@entry.Name</a>
+                            }
+                            else
+                            {
+                                <span class="sv-file-name">@entry.Name</span>
+                            }
+                            @if (read?.Error is { } error)
+                            {
+                                <div class="small text-danger">@error</div>
+                            }
+                        </td>
+                        <td class="small text-nowrap sv-cell-inline">@KindText(entry)</td>
+                        <td class="sv-cell-inline">
+                            @if (entry.CanOpen)
+                            {
+                                if (read?.Summary != null || _reading?.Current == entry.FullPath)
+                                {
+                                    @if (_reading?.Current == entry.FullPath)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    }
+                                    <SpecBadges Summary="read?.Summary" ShowAudio="true"/>
+                                }
+                                else if (read?.Error == null)
+                                {
+                                    <span class="sv-missing small">Not read yet</span>
+                                }
+                            }
+                        </td>
+                        <td class="text-end text-nowrap sv-cell-inline">@(entry.SizeBytes is { } size ? Format.Size(size) : "")</td>
+                        <td class="text-nowrap small pe-3 sv-cell-end" title="@Format.LocalDate(entry.ModifiedUtc)">@Format.TimeAgo(entry.ModifiedUtc)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Root { get; set; } = "";
+
+    [SupplyParameterFromQuery(Name = "path")] public string? PathParam { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? SortParam { get; set; }
+    [SupplyParameterFromQuery(Name = "dir")] public string? DirParam { get; set; }
+    [SupplyParameterFromQuery(Name = "hidden")] public bool? HiddenParam { get; set; }
+
+    /// <summary>Folders first, then by the column; opens A to Z by name.</summary>
+    public static readonly TableSort Sorting = new("name", ["name", "kind", "tracks", "size", "changed"], ["tracks", "size", "changed"]);
+
+    private sealed record ReadState(FileSummary? Summary, string? Error);
+
+    private sealed class ReadProgress
+    {
+        public int Done { get; set; }
+        public int Total { get; init; }
+        public string? Current { get; set; }
+    }
+
+    private BrowseFolderOptions? _root;
+    private FolderListing? _listing;
+    private readonly Dictionary<string, ReadState> _read = new();
+    private string _search = "";
+    private bool _showHidden;
+    private string _sort = Sorting.Default;
+    private bool _descending;
+    private ReadProgress? _reading;
+    private CancellationTokenSource? _readCancel;
+    private string? _loadedFor;
+
+    private IEnumerable<BrowseEntry> Visible => (_listing?.Entries ?? [])
+        .Where(e => _showHidden || !e.IsHidden)
+        .Where(e => _search.Length == 0 || e.Name.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<BrowseEntry> Unread => Visible.Where(e => e.CanOpen && !_read.ContainsKey(e.FullPath));
+
+    protected override void OnParametersSet()
+    {
+        _root = FolderBrowser.Find(Options.Value, Root);
+        _sort = Sorting.Column(SortParam);
+        _descending = Sorting.Descending(_sort, DirParam);
+        _showHidden = HiddenParam == true;
+        var key = $"{Root}|{PathParam}";
+        if (key != _loadedFor)
+        {
+            _loadedFor = key;
+            _search = "";
+            StopReading();
+            Load();
+        }
+    }
+
+    private void Load()
+    {
+        if (_root == null || !Directory.Exists(_root.Path))
+        {
+            _listing = null;
+            return;
+        }
+
+        _listing = FolderBrowser.List(_root.Path, PathParam, Options.Value.VideoExtensions);
+        _read.Clear();
+
+        // What the cache already knows, for the Tracks column. Nothing is read here.
+        foreach (var entry in _listing.Entries.Where(e => e.CanOpen && e.SizeBytes != null))
+        {
+            if (Store.GetRow(entry.FullPath, entry.SizeBytes!.Value, entry.ModifiedUtc.Ticks) is { } row)
+            {
+                _read[entry.FullPath] = new ReadState(FileSummary.FromJson(row.SummaryJson), row.Error);
+            }
+        }
+    }
+
+    private async Task ReadHere()
+    {
+        var todo = Unread.ToList();
+        _readCancel = new CancellationTokenSource();
+        var token = _readCancel.Token;
+        var progress = new ReadProgress { Total = todo.Count };
+        _reading = progress;
+        try
+        {
+            foreach (var entry in todo)
+            {
+                if (token.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                progress.Current = entry.FullPath;
+                StateHasChanged();
+                var result = await Probe.ProbeAsync(entry.FullPath, cancellationToken: token);
+                _read[entry.FullPath] = new ReadState(result.Details is { } d ? FileSummary.From(d) : null, result.Error);
+                progress.Done++;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (_reading == progress)
+            {
+                _reading = null;
+            }
+        }
+    }
+
+    private void StopReading()
+    {
+        _readCancel?.Cancel();
+        _readCancel = null;
+        _reading = null;
+    }
+
+    public void Dispose() => _readCancel?.Cancel();
+
+    private IEnumerable<BrowseEntry> Sorted(IEnumerable<BrowseEntry> entries)
+    {
+        // Folders stay on top, as in any file browser; the column sorts inside each group.
+        var grouped = entries.OrderBy(e => e.IsFolder ? 0 : 1);
+        var ordered = _sort switch
+        {
+            "kind" => _descending ? grouped.ThenByDescending(KindText, StringComparer.OrdinalIgnoreCase) : grouped.ThenBy(KindText, StringComparer.OrdinalIgnoreCase),
+            "tracks" => ThenByMissingLast(grouped, e => Rank(e)),
+            "size" => ThenByMissingLast(grouped, e => e.SizeBytes),
+            "changed" => _descending ? grouped.ThenByDescending(e => e.ModifiedUtc) : grouped.ThenBy(e => e.ModifiedUtc),
+            _ => _descending ? grouped.ThenByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase) : grouped.ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+        };
+        return ordered.ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private IOrderedEnumerable<BrowseEntry> ThenByMissingLast<TKey>(IOrderedEnumerable<BrowseEntry> entries, Func<BrowseEntry, TKey?> key)
+        where TKey : struct
+    {
+        var missingLast = entries.ThenBy(e => key(e) == null);
+        return _descending ? missingLast.ThenByDescending(e => key(e)) : missingLast.ThenBy(e => key(e));
+    }
+
+    /// <summary>For the Tracks column: resolution, then video bit rate.</summary>
+    private long? Rank(BrowseEntry entry) =>
+        _read.GetValueOrDefault(entry.FullPath)?.Summary is { } s
+            ? Format.ResolutionRank(s.Resolution) * 1_000_000_000_000L + (s.VideoBitRate ?? 0)
+            : null;
+
+    private void SortBy(string column)
+    {
+        (_sort, _descending) = Sorting.Click(_sort, _descending, column);
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["sort"] = _sort == Sorting.Default ? null : _sort,
+            ["dir"] = _descending == Sorting.StartsDescending(_sort) ? null : TableSort.Dir(_descending)
+        }), replace: true);
+    }
+
+    private void SetHidden(bool show)
+    {
+        _showHidden = show;
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameter("hidden", show ? true : null), replace: true);
+    }
+
+    private string FolderLink(string relative) =>
+        relative.Length == 0 ? $"browse/{_root!.Slug}" : $"browse/{_root!.Slug}?path={Uri.EscapeDataString(relative)}";
+
+    private string? Link(BrowseEntry entry) =>
+        entry.IsFolder ? FolderLink(entry.RelativePath)
+        : entry.CanOpen ? $"browse/{_root!.Slug}/file?path={Uri.EscapeDataString(entry.RelativePath)}"
+        : null;
+
+    private static string ParentOf(string relative) =>
+        relative.Contains('/') ? relative[..relative.LastIndexOf('/')] : "";
+
+    private static string KindText(BrowseEntry entry) => entry.Kind switch
+    {
+        EntryKind.Folder => entry.ItemCount is { } n ? $"Folder, {n} {(n == 1 ? "item" : "items")}" : "Folder",
+        EntryKind.Video => "Video",
+        EntryKind.Audio => "Audio",
+        EntryKind.Subtitle => "Subtitles",
+        EntryKind.DiscImage => "Disc image",
+        EntryKind.Archive => "Archive",
+        _ => Path.GetExtension(entry.Name) is { Length: > 1 } ext ? ext[1..].ToUpperInvariant() : "File"
+    };
+
+    private static string Icon(EntryKind kind) => kind switch
+    {
+        EntryKind.Folder => "bi-folder-fill",
+        EntryKind.Video => "bi-film",
+        EntryKind.Audio => "bi-music-note-beamed",
+        EntryKind.Subtitle => "bi-badge-cc",
+        EntryKind.DiscImage => "bi-disc",
+        EntryKind.Archive => "bi-file-zip",
+        _ => "bi-file-earmark"
+    };
+}

@@ -853,3 +853,28 @@ h2:focus {
     max-height: 24rem;
     overflow: auto;
 }
+
+/* Sortable column headers (arrkit's SortHeader), the same as Ripparr and Scratcharr. */
+.sv-sort {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sv-sort i {
+    font-size: 0.75em;
+    opacity: 0.35;
+}
+
+.sv-sort:hover i,
+.sv-sort-active i {
+    opacity: 1;
+}
+
+.sv-sort-active {
+    color: var(--bs-emphasis-color);
+}

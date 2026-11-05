@@ -13,6 +13,8 @@ services:
       # Specarr__Libraries__1__Name: TV
       # Specarr__Libraries__1__Path: /tv
       # Specarr__Libraries__1__Kind: Series
+      # Specarr__Browse__0__Name: Downloads
+      # Specarr__Browse__0__Path: /downloads
       # Specarr__RescanHours: "6"            # look for new and changed files every 6 hours
       # Specarr__ProbeConcurrency: "1"       # files read at the same time in the background
     ports:
@@ -21,4 +23,5 @@ services:
       - /config/specarr:/config              # the cache of what was read from each file (specarr.db)
       - /movies:/movies:ro
       - /tv:/tv:ro
+      - /downloads:/downloads:ro             # the Downloads page (browse and open files); read-only
     restart: unless-stopped

@@ -57,7 +57,7 @@ RUN set -eux; \
     install -m 0755 "$(find /tmp/mediainfo -type f -name mediainfo | head -n1)" /out/mediainfo; \
     /out/mediainfo --version
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-resolute AS build
 WORKDIR /src
 COPY global.json ./
 COPY src/Specarr/Specarr.csproj src/Specarr/
@@ -69,7 +69,7 @@ COPY src/ src/
 COPY arrkit/src/ arrkit/src/
 RUN dotnet publish src/Specarr/Specarr.csproj -c Release -o /app --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-resolute
 ARG FFMPEG_VERSION
 ARG MEDIAINFO_VERSION
 ARG DOVI_TOOL_VERSION

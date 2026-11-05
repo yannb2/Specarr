@@ -60,6 +60,16 @@ public sealed class FolderBrowserTests
             Assert.IsTrue(mkv.CanOpen);
             Assert.IsFalse(film.Entries.Single(e => e.Name == "Film.nfo").CanOpen);
 
+            // External: an unplugged disk's empty folder is left out at the top, but not deeper down.
+            Directory.CreateDirectory(Path.Combine(root, "usb02"));
+            Directory.CreateDirectory(Path.Combine(root, "torrents", "empty"));
+            string[] points = ["/", root];
+            File.WriteAllText(Path.Combine(root, ".recycle", "old.mkv"), "x");
+            var disks = FolderBrowser.List(root, "", Videos, f => Arrkit.Files.Mounts.HasDisk(f, points));
+            CollectionAssert.AreEquivalent(new[] { ".recycle", "torrents" }, disks.Entries.Select(e => e.Name).ToArray());
+            Assert.IsTrue(FolderBrowser.List(root, "", Videos).Entries.Any(e => e.Name == "usb02"));
+            Assert.IsTrue(FolderBrowser.List(root, "torrents", Videos, f => Arrkit.Files.Mounts.HasDisk(f, points)).Entries.Any(e => e.Name == "empty"));
+
             Assert.IsNotNull(FolderBrowser.List(root, "../", Videos).Error);
             Assert.IsNotNull(FolderBrowser.List(root, "nowhere", Videos).Error);
             Assert.IsNotNull(FolderBrowser.List(root, "torrents/radarr/Film/Film.mkv", Videos).Error);

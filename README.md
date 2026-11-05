@@ -38,7 +38,8 @@ Specarr is read-only. It is the sister app of
   every MKV global tag (what `tag_release.py` writes), the video and audio bit
   rates (see below), the encoder (x264, x265...) and the program that wrote the file (MakeMKV, mkvmerge).
 - **Downloads and External.** Browse `/downloads` and `/mnt/pc` (USB disks and
-  PC shares, "External" as in Scratcharr), or any folder set in `Specarr__Browse`,
+  PC shares, "External" as in Scratcharr; only the disks plugged in are listed,
+  and the refresh button picks up disks plugged in or out), or any folder set in `Specarr__Browse`,
   folder by folder: torrents, usenet, Firefox downloads, Ripparr and Spinarr
   work folders. Sort every column both ways (arrkit's `SortHeader`), filter the
   folder, show hidden folders (`.recycle`). Open a video or audio file for the
@@ -139,7 +140,7 @@ Add the service to the compose file (see [compose.example.yaml](compose.example.
       - /movies:/movies:ro
       - /tv:/tv:ro
       - /downloads:/downloads:ro             # the Downloads page (hidden when not mounted)
-      - /mnt/pc:/mnt/pc:ro                   # the External page: USB disks and PC shares
+      - /mnt/pc:/mnt/pc:ro,rslave            # the External page: USB disks and PC shares (rslave: disks plugged in later show up)
     restart: unless-stopped
 ```
 

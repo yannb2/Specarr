@@ -136,7 +136,9 @@ public static class FolderBrowser
     }
 
     /// <summary>The folder's files and folders, folders first. A folder that can't be read gives an error, not an exception.</summary>
-    public static FolderListing List(string root, string? relative, IEnumerable<string> videoExtensions)
+    /// <param name="topFolder">For the root itself only: which of its folders to list (null: all). External passes
+    /// "has a disk in it", so an unplugged disk's empty mount point is left out.</param>
+    public static FolderListing List(string root, string? relative, IEnumerable<string> videoExtensions, Func<string, bool>? topFolder = null)
     {
         var full = Resolve(root, relative);
         if (full == null)
@@ -161,6 +163,11 @@ public static class FolderBrowser
                     var childRel = rel.Length == 0 ? info.Name : $"{rel}/{info.Name}";
                     if (info is DirectoryInfo folder)
                     {
+                        if (rel.Length == 0 && topFolder != null && !topFolder(info.FullName))
+                        {
+                            continue;
+                        }
+
                         entries.Add(new BrowseEntry
                         {
                             Name = info.Name, RelativePath = childRel, FullPath = info.FullName, Kind = EntryKind.Folder,

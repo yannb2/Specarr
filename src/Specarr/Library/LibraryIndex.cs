@@ -235,7 +235,9 @@ public sealed class LibraryIndex : BackgroundService
             }
 
             // Forget the rows of files that are gone. Changed files are saved anew once read.
-            _store.Delete(gone.Concat(_stored.Keys.Where(p => !seen.Contains(p))).Distinct().ToList());
+            // Files read from a browsed folder (/downloads) are not in the walk: their rows stay while the file is there.
+            _store.Delete(gone.Concat(_stored.Keys.Where(p => !seen.Contains(p) && (IsInLibrary(_options, p) || !File.Exists(p))))
+                .Distinct().ToList());
             _stored = new Dictionary<string, StoredFile>();
 
             Snapshot = BuildSnapshot(files, walk);
@@ -251,6 +253,11 @@ public sealed class LibraryIndex : BackgroundService
             IsWalking = false;
         }
     }
+
+    /// <summary>The path is under one of the library roots (not a browsed folder such as /downloads).</summary>
+    internal static bool IsInLibrary(SpecarrOptions options, string path) =>
+        options.Libraries.Any(l => !string.IsNullOrEmpty(l.Path)
+                                   && path.StartsWith(l.Path.TrimEnd('/') + "/", StringComparison.Ordinal));
 
     internal static IndexSnapshot BuildSnapshot(List<IndexedFile> files, WalkResult walk)
     {

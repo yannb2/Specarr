@@ -1,0 +1,112 @@
+@page "/browse/{Root}/file"
+@using Microsoft.Extensions.Options
+@inject IOptions<SpecarrOptions> Options
+
+<PageTitle>@(_file?.FileName ?? "File") · Specarr</PageTitle>
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0 small sv-path">
+        @if (_root != null)
+        {
+            <li class="breadcrumb-item"><a href="browse/@_root.Slug">@_root.Path</a></li>
+            @for (var i = 0; i < _parts.Length - 1; i++)
+            {
+                var upTo = string.Join('/', _parts.Take(i + 1));
+                <li class="breadcrumb-item"><a href="browse/@_root.Slug?path=@Uri.EscapeDataString(upTo)">@_parts[i]</a></li>
+            }
+            <li class="breadcrumb-item active sv-file-name" aria-current="page">@(_parts.LastOrDefault() ?? "File")</li>
+        }
+    </ol>
+</nav>
+
+@if (_problem != null || _file == null)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>@(_problem ?? "This file can't be shown.")
+        @if (_root != null)
+        {
+            <a href="browse/@_root.Slug" class="ms-1">Back to @_root.Path</a>
+        }
+    </div>
+    return;
+}
+
+<FileDetailsView File="_file" Others="_others" Detached="true"/>
+
+@code {
+    [Parameter] public string Root { get; set; } = "";
+
+    [SupplyParameterFromQuery(Name = "path")] public string? PathParam { get; set; }
+
+    private BrowseFolderOptions? _root;
+    private string[] _parts = [];
+    private IndexedFile? _file;
+    private List<IndexedFile> _others = [];
+    private string? _problem;
+    private string? _shownPath;
+
+    protected override void OnParametersSet()
+    {
+        _root = FolderBrowser.Find(Options.Value, Root);
+        _parts = (PathParam ?? "").Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (_root == null)
+        {
+            _problem = $"There is no folder called \"{Root}\" to browse.";
+            _file = null;
+            return;
+        }
+
+        var full = FolderBrowser.Resolve(_root.Path, PathParam);
+        if (full == _shownPath && _file != null)
+        {
+            return;
+        }
+
+        _shownPath = full;
+        _problem = null;
+        _file = null;
+        _others = [];
+        if (full == null || PathParam is null or "")
+        {
+            _problem = "That path is outside the folder.";
+            return;
+        }
+
+        var info = new FileInfo(full);
+        if (!info.Exists)
+        {
+            _problem = "This file does not exist (any more): it may have been imported or cleaned up.";
+            return;
+        }
+
+        var kind = FolderBrowser.KindOf(info.Name, Options.Value.VideoExtensions);
+        if (kind is not (EntryKind.Video or EntryKind.Audio))
+        {
+            _problem = kind == EntryKind.DiscImage
+                ? "Disc images can't be read file by file: open it in Ripparr, or unpack it with Scratcharr."
+                : "Only video and audio files have details to show.";
+            return;
+        }
+
+        var library = new LibraryOptions { Name = _root.Name, Path = _root.Path, Categories = false };
+        _file = Detached(library, info);
+
+        // The other video and audio files of the same folder, to compare with (a season pack, two releases side by side).
+        try
+        {
+            _others = info.Directory!.EnumerateFiles()
+                .Where(f => f.FullName != info.FullName && !f.Name.StartsWith('.')
+                            && FolderBrowser.KindOf(f.Name, Options.Value.VideoExtensions) is EntryKind.Video or EntryKind.Audio)
+                .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(f => Detached(library, f))
+                .ToList();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _others = [];
+        }
+    }
+
+    private static IndexedFile Detached(LibraryOptions library, FileInfo info) =>
+        new(info.FullName, library, new LibraryPlace { TitleName = Path.GetFileNameWithoutExtension(info.Name) }, info.Length, info.LastWriteTimeUtc);
+}

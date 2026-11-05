@@ -14,6 +14,8 @@ Specarr is read-only. It is the sister app of
 
 ![File page with the source guess](docs/file.png)
 
+![Downloads](docs/downloads.png)
+
 ![Settings](docs/settings.png)
 
 ## What it does
@@ -35,6 +37,17 @@ Specarr is read-only. It is the sister app of
   profile, Atmos, DTS:X, channels, language, name, flags), chapters, attachments,
   every MKV global tag (what `tag_release.py` writes), the video and audio bit
   rates (see below), the encoder (x264, x265...) and the program that wrote the file (MakeMKV, mkvmerge).
+- **Downloads.** Browse `/downloads` (or any folder set in `Specarr__Browse`)
+  folder by folder: torrents, usenet, Firefox downloads, Ripparr and Spinarr
+  work folders. Sort every column both ways (arrkit's `SortHeader`), filter the
+  folder, show hidden folders (`.recycle`). Open a video or audio file for the
+  same file page as the library: tracks, tags, bit rates, Dolby Vision, the
+  source guess next to the release name, MediaInfo, and Compare with the other
+  files of the same folder (a season pack). "Read N here" reads the folder's
+  files one at a time to fill the Tracks column. Nothing is read in the
+  background and nothing is ever changed; what was read is kept in the cache
+  while the file stays there. Disc images (ISO) are listed but not read: Ripparr
+  opens those.
 - **Dolby Vision.** dovi_tool reads the RPU of the first 500 frames: profile 7
   FEL or MEL, CM v2.9 or v4.0, L1, L2, L5, L6 and the rest of its summary. "Read
   the whole film" reads every frame.
@@ -121,6 +134,7 @@ Add the service to the compose file (see [compose.example.yaml](compose.example.
       - /config/specarr:/config
       - /movies:/movies:ro
       - /tv:/tv:ro
+      - /downloads:/downloads:ro             # the Downloads page (hidden when not mounted)
     restart: unless-stopped
 ```
 
@@ -143,6 +157,7 @@ variable (`__` separates levels, lists are numbered from 0):
 | Setting | Default | Environment variable |
 | --- | --- | --- |
 | Libraries | Movies at `/movies`, TV at `/tv` | `Specarr__Libraries__0__Path=/movies`, `..._Name`, `..._Kind` (`Movies` or `Series`) |
+| Folders to browse (Downloads page) | Downloads at `/downloads` | `Specarr__Browse__0__Path=/downloads`, `..._Name` |
 | Categories as the first folder level | `true` | `Specarr__Libraries__0__Categories=false` |
 | Cache file | `/config/specarr.db` | `Specarr__DatabasePath` |
 | Look for new files every | `6` hours (`0` = only at start and on request) | `Specarr__RescanHours` |

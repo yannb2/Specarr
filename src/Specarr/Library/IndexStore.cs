@@ -146,6 +146,25 @@ public sealed class IndexStore : IDisposable
         }
     }
 
+    /// <summary>The row of one file without the large columns, when the cache has it for this exact size and date.</summary>
+    public StoredFile? GetRow(string path, long size, long modifiedTicks)
+    {
+        lock (_lock)
+        {
+            using var command = _connection.CreateCommand();
+            command.CommandText = "SELECT path, size, mtime, summary, summary_version, error FROM files WHERE path = $path AND size = $size AND mtime = $mtime";
+            command.Parameters.AddWithValue("$path", path);
+            command.Parameters.AddWithValue("$size", size);
+            command.Parameters.AddWithValue("$mtime", modifiedTicks);
+            using var reader = command.ExecuteReader();
+            return reader.Read()
+                ? new StoredFile(reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2),
+                    reader.IsDBNull(3) ? null : reader.GetString(3), reader.GetInt32(4),
+                    reader.IsDBNull(5) ? null : reader.GetString(5))
+                : null;
+        }
+    }
+
     /// <summary>What was read from the file, when the cache has it for this exact size and date.</summary>
     public RawProbe? Get(string path, long size, long modifiedTicks)
     {
@@ -236,7 +255,7 @@ public sealed class IndexStore : IDisposable
         }
     }
 
-    /// <summary>Forgets files that are gone from the library.</summary>
+    /// <summary>Forgets files that are gone from the library, or from a browsed folder.</summary>
     public void Delete(IReadOnlyCollection<string> paths)
     {
         if (paths.Count == 0)

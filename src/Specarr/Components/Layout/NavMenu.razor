@@ -1,6 +1,7 @@
 @implements IDisposable
 @inject ToolStatusService Tools
 @inject IJSRuntime JS
+@inject Microsoft.Extensions.Options.IOptions<SpecarrOptions> Options
 
 <nav class="sv-sidebar @(_collapsed ? "collapsed" : "") @(MobileOpen ? "sv-mobile-open" : "")">
     <div class="sv-sidebar-header d-none d-md-flex">
@@ -24,6 +25,15 @@
                     <span>Files</span>
                 </NavLink>
             </li>
+            @foreach (var folder in Options.Value.Browse.Where(b => Directory.Exists(b.Path)))
+            {
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="@($"browse/{folder.Slug}")" Match="NavLinkMatch.Prefix" @onclick="Close" title="@folder.Path">
+                        <i class="bi bi-download"></i>
+                        <span>@folder.Name</span>
+                    </NavLink>
+                </li>
+            }
             <li class="nav-item">
                 <NavLink class="nav-link" href="logs" @onclick="Close">
                     <i class="bi bi-journal-text"></i>

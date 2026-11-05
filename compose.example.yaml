@@ -15,6 +15,8 @@ services:
       # Specarr__Libraries__1__Kind: Series
       # Specarr__Browse__0__Name: Downloads
       # Specarr__Browse__0__Path: /downloads
+      # Specarr__Browse__1__Name: External
+      # Specarr__Browse__1__Path: /mnt/pc
       # Specarr__RescanHours: "6"            # look for new and changed files every 6 hours
       # Specarr__ProbeConcurrency: "1"       # files read at the same time in the background
     ports:
@@ -24,4 +26,5 @@ services:
       - /movies:/movies:ro
       - /tv:/tv:ro
       - /downloads:/downloads:ro             # the Downloads page (browse and open files); read-only
+      - /mnt/pc:/mnt/pc:ro                   # the External page: USB disks and PC shares; read-only
     restart: unless-stopped

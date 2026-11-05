@@ -10,7 +10,7 @@
 <PageTitle>@(_root?.Name ?? "Browse") · Specarr</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3 sv-page-header gap-2">
-    <h2 class="mb-0"><i class="bi bi-download me-2"></i>@(_root?.Name ?? "Browse")</h2>
+    <h2 class="mb-0"><i class="bi @(_root?.Icon ?? "bi-folder2-open") me-2"></i>@(_root?.Name ?? "Browse")</h2>
     @if (_listing is { Error: null })
     {
         <div class="d-flex flex-wrap gap-2 justify-content-end">

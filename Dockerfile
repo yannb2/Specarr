@@ -86,12 +86,15 @@ COPY --from=build /app ./
 RUN mkdir -p /config && chown $APP_UID /config
 VOLUME /config
 
+# UTF-8 locale: in the plain C locale tools garble non-ASCII file names ("Me²").
 # The pins show on the Tools page next to what each tool reports and the newest upstream version.
 ENV SPECARR_PIN_FFPROBE=${FFMPEG_VERSION} \
     SPECARR_PIN_MEDIAINFO=${MEDIAINFO_VERSION} \
     SPECARR_PIN_DOVI_TOOL=${DOVI_TOOL_VERSION} \
     ASPNETCORE_HTTP_PORTS=8185 \
-    TZ=Etc/UTC
+    TZ=Etc/UTC \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
 EXPOSE 8185
 
 # Read-only: Specarr never writes to the library. Compose can pick the user (user: 1000:1000).
